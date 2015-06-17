@@ -1,14 +1,15 @@
-import math
-import time
-import datetime
-import operator
-import sys
-import os
-import string
-import copy
-#from fsm import State, Transducer, get_graph
 from collections import defaultdict
+import copy
+import datetime
 import itertools
+import math
+import operator
+import os
+from pathlib import Path
+import time
+import sys
+import string
+#from fsm import State, Transducer, get_graph
 
 import networkx as nx
 
@@ -33,8 +34,8 @@ def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
 
 
 
-def ReadWordFreqFile(infilename, MinimumStemLength):
-    with open(infilename, 'rU') as infile:
+def ReadWordFreqFile(infilename: Path, MinimumStemLength):
+    with infilename.open() as infile:
         filelines= infile.readlines()
         wordFreqDict = dict()
 
@@ -1461,8 +1462,8 @@ def MakeStemToWords(BisigToTuple, MinimumNumberofSigUses):
                 StemToWord[stem].add(word2)
     return StemToWord
 
-def OutputStemFile(stemfilename, StemToWord, StemCounts):
-    with open(stemfilename, "w") as stems_outfile:
+def OutputStemFile(stemfilename: Path, StemToWord, StemCounts):
+    with stemfilename.open('w') as stems_outfile:
         for stem in sorted(StemToWord.keys()):             
             print(stem, StemCounts[stem], ' '.join(StemToWord[stem]),
                   file=stems_outfile)
