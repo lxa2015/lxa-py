@@ -63,42 +63,45 @@ def load_config(language, corpus, filename='config.json', writenew=True):
 
     return language, corpus
 
-
-def main():
-    args = makeArgParser().parse_args()
+def create_wordlist(language, corpus, minimum_stem_length, datafolder='data'):
 
     # --------------------------------------------------------------------------#
     #      set up language and corpus names; set up all paths and filenames
     # --------------------------------------------------------------------------#
-    MinimumStemLength = args.minstem
-    MaximumAffixLength = args.maxaffix
-    MinimumNumberofSigUses = args.minsig
+
 
     # --------------------------------------------------------------------------#
     #      load config file
     # --------------------------------------------------------------------------#
-
-    language, corpus = load_config(args.language, args.corpus)
-
-    datafolder = Path('data')
     ngramfolder = Path(datafolder, language, 'ngrams')
-    outfolder = Path(datafolder, language, 'lxa')
 
-    if not outfolder.exists():
-        outfolder.mkdir(parents=True)
-
-    short_filename = language + '-' + corpus
 
     # infilename = ngramfolder  + short_filename     + "_words.txt"
     # stemfilename                = outfolder  + short_filename     + "_stems.txt"
     infilename = Path(ngramfolder, Path(corpus).name)
-    stemfilename = Path(outfolder, '{}_stems.txt'.format(short_filename))
 
-    # TODO -- filenames not yet used in main()
-    outfile_Signatures_name = str(outfolder) + short_filename + "_Signatures.txt"
-    outfile_SigTransforms_name = str(outfolder) + short_filename + "_SigTransforms.txt"
-    outfile_FSA_name = str(outfolder) + short_filename + "_FSA.txt"
-    outfile_FSA_graphics_name = str(outfolder) + short_filename + "_FSA_graphics.png"
+
+    # --------------------------------------------------------------------------#
+    #      create word+freq dict from file; derive wordlist
+    # --------------------------------------------------------------------------#
+
+    word_freq_dict = ReadWordFreqFile(infilename, minimum_stem_length)
+
+    wordlist = sorted(word_freq_dict.keys())
+    return wordlist, word_freq_dict
+
+
+
+def main():
+    args = makeArgParser().parse_args()
+
+    MinimumStemLength = args.minstem
+    MaximumAffixLength = args.maxaffix
+    MinimumNumberofSigUses = args.minsig
+
+    datafolder = Path('data')
+    language, corpus = load_config(args.language, args.corpus)
+    short_filename = language + '-' + corpus
 
     # --------------------------------------------------------------------------#
     #       decide suffixing or prefixing
@@ -120,14 +123,21 @@ def main():
     if language in prefix_languages:
         FindSuffixesFlag = False  # prefixal
 
-    # --------------------------------------------------------------------------#
-    #      create word+freq dict from file; derive wordlist
-    # --------------------------------------------------------------------------#
+    wordlist, wordFreqDict = create_wordlist(language, corpus,
+                                             MinimumStemLength, datafolder)
 
-    wordFreqDict = ReadWordFreqFile(infilename, MinimumStemLength)
+    outfolder = Path(datafolder, language, 'lxa')
 
-    wordlist = list(wordFreqDict.keys())
-    wordlist.sort()
+    if not outfolder.exists():
+        outfolder.mkdir(parents=True)
+
+    stemfilename = Path(outfolder, '{}_stems.txt'.format(short_filename))
+
+    # TODO -- filenames not yet used in main()
+    outfile_Signatures_name = str(outfolder) + short_filename + "_Signatures.txt"
+    outfile_SigTransforms_name = str(outfolder) + short_filename + "_SigTransforms.txt"
+    outfile_FSA_name = str(outfolder) + short_filename + "_FSA.txt"
+    outfile_FSA_graphics_name = str(outfolder) + short_filename + "_FSA_graphics.png"
 
     # --------------------------------------------------------------------------#
     #   create: BisigToTuple
