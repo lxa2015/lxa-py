@@ -2,6 +2,7 @@
 
 # John Goldsmith, 2012-
 # Jackson Lee, 2015-
+# Anton Melnikov, 2015-
 
 # TODO: trie structure
 
@@ -17,6 +18,7 @@ import copy
 import argparse
 import pickle
 from collections import defaultdict
+from pathlib import Path
 
 from lxa5_module import *
 
@@ -50,35 +52,45 @@ def main(argv):
     #--------------------------------------------------------------------------#
     language = args.language
     corpus = args.corpus
-    MinimumStemLength     = args.minstem
-    MaximumAffixLength     = args.maxaffix
-    MinimumNumberofSigUses     = args.minsig
+    MinimumStemLength = args.minstem
+    MaximumAffixLength = args.maxaffix
+    MinimumNumberofSigUses = args.minsig
 
-    datafolder            = "../../data/" 
-    ngramfolder           = datafolder + language + "/ngrams/"
-    outfolder             = datafolder + language + "/lxa/"
+    datafolder            = Path('data')
+    ngramfolder           = Path(datafolder, language, 'ngrams')
+    outfolder             = Path(datafolder, language, 'lxa')
 
-    if not os.path.exists(outfolder):
-        os.makedirs(outfolder)
+    # if not os.path.exists(outfolder):
+    #     os.makedirs(outfolder)
+    if not outfolder.exists():
+        outfolder.mkdir(parents=True)
 
     short_filename = language + '-' + corpus
 
-    infilename = ngramfolder  + short_filename     + "_words.txt"
-
-    stemfilename                = outfolder  + short_filename     + "_stems.txt"
+    # infilename = ngramfolder  + short_filename     + "_words.txt"
+    #stemfilename                = outfolder  + short_filename     + "_stems.txt"
+    infilename = Path(ngramfolder, Path(corpus).name)
+    stemfilename = Path(outfolder, '{}_stems.txt'.format(short_filename))
 
     # TODO -- filenames not yet used in main()
-    outfile_Signatures_name     = outfolder + short_filename + "_Signatures.txt"  
-    outfile_SigTransforms_name  = outfolder + short_filename + "_SigTransforms.txt"
-    outfile_FSA_name            = outfolder + short_filename + "_FSA.txt"
-    outfile_FSA_graphics_name   = outfolder + short_filename + "_FSA_graphics.png"
+    outfile_Signatures_name     = str(outfolder) + short_filename + "_Signatures.txt"
+    outfile_SigTransforms_name  = str(outfolder) + short_filename + "_SigTransforms.txt"
+    outfile_FSA_name            = str(outfolder) + short_filename + "_FSA.txt"
+    outfile_FSA_graphics_name   = str(outfolder) + short_filename + "_FSA_graphics.png"
 
     #--------------------------------------------------------------------------#
     #       decide suffixing or prefixing
     #--------------------------------------------------------------------------#
 
-    suffix_languages = ["english", "french", "hungarian", "turkish", "test", "german", "spanish"]
-    prefix_languages = ["swahili"]
+    suffix_languages = {"english",
+                        "french",
+                        "hungarian",
+                        "turkish",
+                        "russian",
+                        "german",
+                        "spanish",
+                        'test'}
+    prefix_languages = {"swahili"}
 
     if language in suffix_languages:
         FindSuffixesFlag = True # suffixal
@@ -137,8 +149,8 @@ def main(argv):
     #--------------------------------------------------------------------------#
     #   pickle SigToStems
     #--------------------------------------------------------------------------#
-    SigToStems_pkl_fname = outfolder  + short_filename     + "_SigToStems.pkl"
-    with open(SigToStems_pkl_fname, 'wb') as f:
+    SigToStems_pkl_fname = Path(outfolder, short_filename + "_SigToStems.pkl")
+    with SigToStems_pkl_fname.open('wb') as f:
         pickle.dump(SigToStems, f)
     print('===> pickle file generated:', SigToStems_pkl_fname, flush=True)
 
@@ -180,8 +192,8 @@ def main(argv):
     #   output SigToStems
     #--------------------------------------------------------------------------#
 
-    SigToStems_outfilename = outfolder  + short_filename     + "_SigToStems.txt"
-    with open(SigToStems_outfilename, 'w') as f:
+    SigToStems_outfilename = Path(outfolder, short_filename + "_SigToStems.txt")
+    with SigToStems_outfilename.open('w') as f:
         for (idx, (sig, stemList)) in enumerate(SigToStemsSortedList):
             print(sig, len(stemList), file=f)
 
@@ -202,10 +214,11 @@ def main(argv):
     #   output the most freq word types not in any induced paradigms {the, of..}
     #--------------------------------------------------------------------------#
 
-    mostFreqWordsNotInSigs_outfilename = outfolder  + \
-                                short_filename  + "_mostFreqWordsNotInSigs.txt"
+    mostFreqWordsNotInSigs_outfilename = Path(outfolder,
+                                              short_filename +
+                                              "_mostFreqWordsNotInSigs.txt")
 
-    with open(mostFreqWordsNotInSigs_outfilename, 'w') as f:
+    with mostFreqWordsNotInSigs_outfilename.open('w') as f:
 
         for (word, freq) in sorted(wordFreqDict.items(),
                                    key=lambda x:x[1], reverse=True):
@@ -221,10 +234,9 @@ def main(argv):
     #   output the word types in induced paradigms
     #--------------------------------------------------------------------------#
 
-    WordsInSigs_outfilename = outfolder  + \
-                                short_filename  + "_WordsInSigs.txt"
+    WordsInSigs_outfilename = Path(outfolder, short_filename + "_WordsInSigs.txt")
 
-    with open(WordsInSigs_outfilename, 'w') as f:
+    with WordsInSigs_outfilename.open('w') as f:
 
         wordFreqInSigListSorted = [(word, freq) for (word, freq) in
                                    sorted(wordFreqDict.items(),
