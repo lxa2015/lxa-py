@@ -9,22 +9,15 @@
 # ------------------------------------------------------------------------------#
 
 import argparse
-import copy
 import json
-import pickle
 import time
-import datetime
-import operator
-import sys
-import os
-import string
 import pickle
-from collections import defaultdict
 from pathlib import Path
 
-
-from lxa5_module import *
-
+from lxa5_module import (ReadWordFreqFile, MakeBiSignatures,
+                         MakeStemToWords, MakeStemCounts,
+                         OutputStemFile, MakeSigToStems,
+                         MakeStemToSig, MakeWordToSigs)
 
 
 # ------------------------------------------------------------------------------#
@@ -48,6 +41,7 @@ def makeArgParser():
     parser.add_argument("--minsig", help="Minimum number of signatures", type=int,
                         default=50)
     return parser
+
 
 def load_config(language, corpus, filename='config.json', writenew=True):
     config_path = Path('config.json')
@@ -207,7 +201,7 @@ def main():
     for (idx, (sig, stemList)) in enumerate(SigToStemsSortedList):
         nStems = len(stemList)
         nWordsInParadigms = nWordsInParadigms + nStems * len(sig)
-    #        print(idx, sig)
+    # print(idx, sig)
     #        print(nStems, end=' ')
     #        print(sig, len(stemList))
     #        if idx > 20:
@@ -288,10 +282,13 @@ def to_be_handled():
     # ------------------------------------------------------------------------------#
 
     Signatures_outfile = open(outfile_Signatures_name, 'w')
+
     SigTransforms_outfile = open(outfile_SigTransforms_name, 'w')
+
     FSA_outfile = open(outfile_FSA_name, 'w')
 
     # July 15, 2014, Jackson Lee
+
     outfile_Signatures_name_JL = outfolder + short_filename + "_Signatures-JL.txt"
     Signatures_outfile_JL = open(outfile_Signatures_name_JL, 'w')
 
@@ -440,7 +437,7 @@ def to_be_handled():
     # ------------------------------------------------------------------------------#
 
 
-    print >> FSA_outfile, "Finding common stems across edges."
+    print("Finding common stems across edges.", file=FSA_outfile)
     HowManyTimesToCollapseEdges = 9
     for loop in range(HowManyTimesToCollapseEdges):
         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
