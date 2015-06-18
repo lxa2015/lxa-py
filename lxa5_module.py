@@ -140,8 +140,8 @@ def findSignatureInformationContent (signatures, signature, bitsPerLetter):
     orderingInformation = int(stemSetOrderingInformation + affixOrderingInformation)
     return (phonoInformation, orderingInformation)
 # ---------------------------------------------------------#
-def makeWordListFromSignature (signature, stemset):
-    wordlist = list()
+def makeWordListFromSignature(signature, stemset):
+    wordlist = []
     affixlist = signature.split('.')
     for stem in stemset:
         for affix in affixlist:
@@ -149,7 +149,7 @@ def makeWordListFromSignature (signature, stemset):
                 word = stem
             else:
                 word = stem + affix
-        wordlist.append (word)
+            wordlist.append(word)
     return wordlist
 # ---------------------------------------------------------#        
 def FindSignature_LetterCountSavings(Signatures, sig):
