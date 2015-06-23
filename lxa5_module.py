@@ -34,7 +34,7 @@ def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
 
 
 
-def ReadWordFreqFile(infilename: Path, MinimumStemLength):
+def ReadWordFreqFile(infilename: Path):
     with infilename.open() as infile:
         filelines= infile.readlines()
         wordFreqDict = dict()
@@ -45,8 +45,6 @@ def ReadWordFreqFile(infilename: Path, MinimumStemLength):
                 continue
 
             word, *rest = line.split()
-#            if len(word) < MinimumStemLength:
-#                continue
             word = word.lower()
 
             if rest:
