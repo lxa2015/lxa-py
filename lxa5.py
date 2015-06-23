@@ -8,6 +8,7 @@
 
 # ------------------------------------------------------------------------------#
 
+import sys
 import argparse
 import json
 import time
@@ -29,83 +30,78 @@ NumberOfCorrections = 100  # TODO: keep or not?
 # ------------------------------------------------------------------------------#
 
 def makeArgParser():
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--language", help="Language name", type=str,
-                        default=None)
-    parser.add_argument("--corpus", help="Corpus to use", type=str,
-                        default=None)
-    parser.add_argument("--minstem", help="Minimum stem length", type=int,
-                        default=4)
-    parser.add_argument("--maxaffix", help="Maximum affix length", type=int,
-                        default=3)
-    parser.add_argument("--minsig", help="Minimum number of signatures", type=int,
-                        default=50)
+    parser = argparse.ArgumentParser(
+        description="If neither config.json nor {language, corpus, datafolder} "
+                    "arguments are found, user inputs are prompted.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--language", help="Language name",
+                        type=str, default=None)
+    parser.add_argument("--corpus", help="Corpus to use",
+                        type=str, default=None)
+    parser.add_argument("--datafolder", help="path of the data folder",
+                        type=str, default=None)
+    parser.add_argument("--minstem", help="Minimum stem length",
+                        type=int, default=4)
+    parser.add_argument("--maxaffix", help="Maximum affix length",
+                        type=int, default=3)
+    parser.add_argument("--minsig", help="Minimum number of signature use",
+                        type=int, default=50)
     return parser
 
 
-def load_config(language, corpus, filename='config.json', writenew=True):
-    config_path = Path('config.json')
-    if not language or not corpus:
+def load_config(language, corpus, datafolder, filename='config.json',
+                writenew=True):
+    config_path = Path(filename)
+    if not language or not corpus or not datafolder:
         try:
             # see if it's there
             with config_path.open() as config_file:
                 config = json.load(config_file)
             language = config['language']
             corpus = config['corpus']
+            datafolder = config['datafolder']
+            writenew = False
         except (FileNotFoundError, KeyError):
             language = input('enter language name: ')
             corpus = input('enter corpus filename: ')
+            datafolder = input('enter data path: ')
 
-    config = {'language': language,
-              'corpus': corpus}
-    with config_path.open('w') as config_file:
-        json.dump(config, config_file)
+    if writenew:
+        config = {'language': language,
+                  'corpus': corpus,
+                  'datafolder': datafolder}
+        with config_path.open('w') as config_file:
+            json.dump(config, config_file)
 
-    return language, corpus
-
-def create_wordlist(language, corpus, minimum_stem_length, datafolder='data'):
-
-    # --------------------------------------------------------------------------#
-    #      set up language and corpus names; set up all paths and filenames
-    # --------------------------------------------------------------------------#
+    return language, corpus, datafolder
 
 
-    # --------------------------------------------------------------------------#
-    #      load config file
-    # --------------------------------------------------------------------------#
-    ngramfolder = Path(datafolder, language, 'ngrams')
+def create_wordlist(language, filename, datafolder,
+                    max_words=None, minimum_stem_length=None):
+    ngram_path = Path(datafolder, language, 'ngrams')
+    infilepath = Path(ngram_path, filename)
+    word_freq_dict = ReadWordFreqFile(infilepath, minimum_stem_length)
 
+    # if the maximum is given
+    # get only that number of words
+    if max_words:
+        wordlist = sorted(word for n, word in enumerate(word_freq_dict.keys())
+                          if n <= max_words)
 
-    # infilename = ngramfolder  + short_filename     + "_words.txt"
-    # stemfilename                = outfolder  + short_filename     + "_stems.txt"
-    infilename = Path(ngramfolder, Path(corpus).name)
-
-
-    # --------------------------------------------------------------------------#
-    #      create word+freq dict from file; derive wordlist
-    # --------------------------------------------------------------------------#
-
-    word_freq_dict = ReadWordFreqFile(infilename, minimum_stem_length)
-
-    wordlist = sorted(word_freq_dict.keys())
+    # the maximum is not given, so we'll get all words
+    else:
+        wordlist = sorted(word_freq_dict.keys())
     return wordlist, word_freq_dict
 
 
+def main(language, corpus, datafolder,
+         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses):
 
-def main():
-    args = makeArgParser().parse_args()
+    short_filename = corpus
 
-    MinimumStemLength = args.minstem
-    MaximumAffixLength = args.maxaffix
-    MinimumNumberofSigUses = args.minsig
-
-    datafolder = Path('data')
-    language, corpus = load_config(args.language, args.corpus)
-    short_filename = language + '-' + corpus
-
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #       decide suffixing or prefixing
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     suffix_languages = {"english",
                         "french",
@@ -120,11 +116,10 @@ def main():
     if language in suffix_languages:
         FindSuffixesFlag = True  # suffixal
 
-    if language in prefix_languages:
+    else:
         FindSuffixesFlag = False  # prefixal
 
-    wordlist, wordFreqDict = create_wordlist(language, corpus,
-                                             MinimumStemLength, datafolder)
+    wordlist, wordFreqDict = create_wordlist(language, corpus, datafolder)
 
     outfolder = Path(datafolder, language, 'lxa')
 
@@ -658,4 +653,23 @@ def to_be_handled():
 
 
 if __name__ == "__main__":
-    main()
+
+    args = makeArgParser().parse_args()
+
+    MinimumStemLength = args.minstem
+    MaximumAffixLength = args.maxaffix
+    MinimumNumberofSigUses = args.minsig
+
+    language, corpus, datafolder = load_config(args.language,
+                                               args.corpus, args.datafolder)
+
+    print("language: {}".format(language))
+    print("corpus: {}".format(corpus))
+    print("datafolder: {}".format(datafolder))
+    proceed = input("proceed? [Y/n] ")
+    if proceed and (proceed[0].lower() == "n"):
+        sys.exit()
+
+    main(language, corpus, datafolder,
+         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses)
+
