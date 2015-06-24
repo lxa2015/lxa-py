@@ -1,21 +1,13 @@
-from collections import Counter
-import copy
-import datetime
 import itertools
 import math
 import os
 from pathlib import Path
 import time
-import sys
-import string
 #from fsm import State, Transducer, get_graph
 
 import networkx as nx
 
-from fsa_py3  import * # written by JG
-
-
-""""     Signatures is a map: its keys are signatures. Its values are *sets* of stems. 
+""""     Signatures is a map: its keys are signatures. Its values are *sets* of stems.
      StemToWord is a map; its keys are stems.      Its values are *sets* of words.
      StemToSig is a map; its keys are stems.       Its values are individual signatures.
      WordToSig is a Map. its keys are words.       Its values are *lists* of signatures.
