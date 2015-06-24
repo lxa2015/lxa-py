@@ -1,22 +1,13 @@
-from collections import defaultdict
-import copy
-import datetime
 import itertools
 import math
-import operator
 import os
 from pathlib import Path
 import time
-import sys
-import string
 #from fsm import State, Transducer, get_graph
 
 import networkx as nx
 
-from fsa_py3  import * # written by JG
-
-
-""""     Signatures is a map: its keys are signatures. Its values are *sets* of stems. 
+""""     Signatures is a map: its keys are signatures. Its values are *sets* of stems.
      StemToWord is a map; its keys are stems.      Its values are *sets* of words.
      StemToSig is a map; its keys are stems.       Its values are individual signatures.
      WordToSig is a Map. its keys are words.       Its values are *lists* of signatures.
@@ -34,27 +25,44 @@ def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
 
 
 
+<<<<<<< HEAD
 def ReadWordFreqFile(infilename: Path):
+=======
+def read_word_freq_file(infilename: Path, minimum_stem_length=None) -> dict:
+>>>>>>> stemalts
     with infilename.open() as infile:
-        filelines= infile.readlines()
-        wordFreqDict = dict()
+        lines = infile.readlines()
+        word_frequencies = {}
 
-        for line in filelines:
-            line = line.replace('\n','').replace('\r','')
-            if (not line) or line.startswith('#'):
+        for line in lines:
+
+            # remove trailing whitespace and see if anything useful is left
+            line = line.strip()
+            if not line or line.startswith('#'):
                 continue
 
             word, *rest = line.split()
+<<<<<<< HEAD
             word = word.lower()
+=======
+>>>>>>> stemalts
 
+            if minimum_stem_length and len(word) < minimum_stem_length:
+                continue
+
+            word = word.casefold()
+
+            # if additional information (e.g. frequency) is present
             if rest:
                 freq = int(rest[0])
+
+            # if not, default to 1
             else:
                 freq = 1
 
-            wordFreqDict[word] = freq
+            word_frequencies[word] = freq
 
-    return wordFreqDict
+    return word_frequencies
 
 
 def list_to_string(mylist):
