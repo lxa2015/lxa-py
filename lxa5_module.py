@@ -31,7 +31,7 @@ def read_word_freq_file(infilename: Path, minimum_stem_length=None) -> dict:
         word_frequencies = {}
 
         for line in lines:
-            
+
             # remove trailing whitespace and see if anything useful is left
             line = line.strip()
             if not line or line.startswith('#'):
