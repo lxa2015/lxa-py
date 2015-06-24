@@ -15,7 +15,7 @@ import time
 import pickle
 from pathlib import Path
 
-from lxa5_module import (ReadWordFreqFile, MakeBiSignatures,
+from lxa5_module import (read_word_freq_file, MakeBiSignatures,
                          MakeStemToWords, MakeStemCounts,
                          OutputStemFile, MakeSigToStems,
                          MakeStemToSig, MakeWordToSigs)
@@ -80,7 +80,7 @@ def create_wordlist(language, filename, datafolder,
                     minimum_stem_length=None):
     ngram_path = Path(datafolder, language, 'ngrams')
     infilepath = Path(ngram_path, filename)
-    word_freq_dict = ReadWordFreqFile(infilepath, minimum_stem_length)
+    word_freq_dict = read_word_freq_file(infilepath, minimum_stem_length)
 
     wordlist = sorted(word_freq_dict.keys())
     return wordlist, word_freq_dict

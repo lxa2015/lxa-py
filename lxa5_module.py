@@ -1,9 +1,8 @@
-from collections import defaultdict
+from collections import Counter
 import copy
 import datetime
 import itertools
 import math
-import operator
 import os
 from pathlib import Path
 import time
@@ -34,14 +33,16 @@ def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
 
 
 
-def ReadWordFreqFile(infilename: Path, minimum_stem_length=None):
+def read_word_freq_file(infilename: Path, minimum_stem_length=None) -> dict:
     with infilename.open() as infile:
-        filelines= infile.readlines()
-        wordFreqDict = dict()
+        lines = infile.readlines()
+        word_frequencies = {}
 
-        for line in filelines:
-            line = line.replace('\n','').replace('\r','')
-            if (not line) or line.startswith('#'):
+        for line in lines:
+            
+            # remove trailing whitespace and see if anything useful is left
+            line = line.strip()
+            if not line or line.startswith('#'):
                 continue
 
             word, *rest = line.split()
@@ -49,16 +50,19 @@ def ReadWordFreqFile(infilename: Path, minimum_stem_length=None):
             if minimum_stem_length and len(word) < minimum_stem_length:
                 continue
 
-            word = word.lower()
+            word = word.casefold()
 
+            # if additional information (e.g. frequency) is present
             if rest:
                 freq = int(rest[0])
+
+            # if not, default to 1
             else:
                 freq = 1
 
-            wordFreqDict[word] = freq
+            word_frequencies[word] = freq
 
-    return wordFreqDict
+    return word_frequencies
 
 
 def list_to_string(mylist):
