@@ -77,20 +77,12 @@ def load_config(language, corpus, datafolder, filename='config.json',
 
 
 def create_wordlist(language, filename, datafolder,
-                    max_words=None, minimum_stem_length=None):
+                    minimum_stem_length=None):
     ngram_path = Path(datafolder, language, 'ngrams')
     infilepath = Path(ngram_path, filename)
     word_freq_dict = ReadWordFreqFile(infilepath, minimum_stem_length)
 
-    # if the maximum is given
-    # get only that number of words
-    if max_words:
-        wordlist = sorted(word for n, word in enumerate(word_freq_dict.keys())
-                          if n < max_words)
-
-    # the maximum is not given, so we'll get all words
-    else:
-        wordlist = sorted(word_freq_dict.keys())
+    wordlist = sorted(word_freq_dict.keys())
     return wordlist, word_freq_dict
 
 
