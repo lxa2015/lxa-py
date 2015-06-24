@@ -23,13 +23,7 @@ def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
             stemList = sorted(SigToStems[sig])
             print(sig, len(stemList), ' '.join(stemList), file=f)
 
-
-
-<<<<<<< HEAD
-def ReadWordFreqFile(infilename: Path):
-=======
 def read_word_freq_file(infilename: Path, minimum_stem_length=None) -> dict:
->>>>>>> stemalts
     with infilename.open() as infile:
         lines = infile.readlines()
         word_frequencies = {}
@@ -42,10 +36,6 @@ def read_word_freq_file(infilename: Path, minimum_stem_length=None) -> dict:
                 continue
 
             word, *rest = line.split()
-<<<<<<< HEAD
-            word = word.lower()
-=======
->>>>>>> stemalts
 
             if minimum_stem_length and len(word) < minimum_stem_length:
                 continue

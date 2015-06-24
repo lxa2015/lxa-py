@@ -76,19 +76,12 @@ def load_config(language, corpus, datafolder, filename='config.json',
     return language, corpus, datafolder
 
 
-<<<<<<< HEAD
-def create_wordlist(language, short_filename, datafolder):
-    ngramfolder = Path(datafolder, language, 'ngrams')
-    infilename = Path(ngramfolder, '{}_words.txt'.format(short_filename))
-    word_freq_dict = ReadWordFreqFile(infilename)
-=======
 def create_wordlist(language, filename, datafolder,
                     minimum_stem_length=None):
     ngram_path = Path(datafolder, language, 'ngrams')
     infilepath = Path(ngram_path, filename)
     word_freq_dict = read_word_freq_file(infilepath, minimum_stem_length)
 
->>>>>>> stemalts
     wordlist = sorted(word_freq_dict.keys())
     return wordlist, word_freq_dict
 
@@ -96,11 +89,7 @@ def create_wordlist(language, filename, datafolder,
 def main(language, corpus, datafolder,
          MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses):
 
-<<<<<<< HEAD
-    short_filename = language + '-' + corpus
-=======
     short_filename = corpus
->>>>>>> stemalts
 
     # -------------------------------------------------------------------------#
     #       decide suffixing or prefixing
@@ -122,12 +111,7 @@ def main(language, corpus, datafolder,
     else:
         FindSuffixesFlag = False  # prefixal
 
-<<<<<<< HEAD
-    wordlist, wordFreqDict = create_wordlist(language,
-                                             short_filename, datafolder)
-=======
     wordlist, wordFreqDict = create_wordlist(language, corpus, datafolder)
->>>>>>> stemalts
 
     outfolder = Path(datafolder, language, 'lxa')
 
