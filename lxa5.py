@@ -86,7 +86,7 @@ def create_wordlist(language, filename, datafolder,
     # get only that number of words
     if max_words:
         wordlist = sorted(word for n, word in enumerate(word_freq_dict.keys())
-                          if n <= max_words)
+                          if n < max_words)
 
     # the maximum is not given, so we'll get all words
     else:
