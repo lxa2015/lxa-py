@@ -197,7 +197,7 @@ def run(corpus_path, min_stem_length, max_words,
                                         min_alternation_freq,
                                         min_skeleton_freq)
 
-    corpus_name = corpus_path.suffix
+    corpus_name = corpus_path.stem
     print_patterns(filtered_patterns, corpus_name)
 
 
@@ -235,7 +235,6 @@ def print_patterns(patterns, name):
 
 if __name__ == '__main__':
     arg_parser = ArgumentParser()
-    arg_parser.add_argument('language', help='language to analyze')
     arg_parser.add_argument('corpus', help='corpus file to analyze')
     arg_parser.add_argument('-msl', '--min-stem-length',
                             type=int, default=4)
