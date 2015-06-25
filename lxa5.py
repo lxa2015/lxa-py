@@ -4,9 +4,7 @@
 # Jackson Lee, 2015-
 # Anton Melnikov, 2015-
 
-# TODO: trie structure
-
-# ------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 
 import sys
 import argparse
@@ -20,14 +18,13 @@ from lxa5_module import (read_word_freq_file, MakeBiSignatures,
                          OutputStemFile, MakeSigToStems,
                          MakeStemToSig, MakeWordToSigs)
 
-
-# ------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 #        user modified variables
-# ------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 
 NumberOfCorrections = 100  # TODO: keep or not?
 
-# ------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 
 def makeArgParser():
     parser = argparse.ArgumentParser(
@@ -36,7 +33,7 @@ def makeArgParser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--language", help="Language name",
                         type=str, default=None)
-    parser.add_argument("--corpus", help="Corpus to use",
+    parser.add_argument("--corpus", help="Corpus file to use",
                         type=str, default=None)
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
@@ -46,6 +43,8 @@ def makeArgParser():
                         type=int, default=3)
     parser.add_argument("--minsig", help="Minimum number of signature use",
                         type=int, default=50)
+    parser.add_argument("--maxwordtokens", help="maximum number of word tokens",
+                        type=int, default=0)
     return parser
 
 
@@ -77,19 +76,21 @@ def load_config(language, corpus, datafolder, filename='config.json',
 
 
 def create_wordlist(language, filename, datafolder,
-                    minimum_stem_length=None):
+                    minimum_stem_length=None, maxwordtokens=0):
     ngram_path = Path(datafolder, language, 'ngrams')
     infilepath = Path(ngram_path, filename)
-    word_freq_dict = read_word_freq_file(infilepath, minimum_stem_length)
+    word_freq_dict = read_word_freq_file(infilepath,
+                                         minimum_stem_length, maxwordtokens)
 
     wordlist = sorted(word_freq_dict.keys())
     return wordlist, word_freq_dict
 
 
 def main(language, corpus, datafolder,
-         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses):
+         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
+         maxwordtokens):
 
-    short_filename = corpus
+    short_filename = Path(corpus).stem
 
     # -------------------------------------------------------------------------#
     #       decide suffixing or prefixing
@@ -651,17 +652,24 @@ if __name__ == "__main__":
     MinimumStemLength = args.minstem
     MaximumAffixLength = args.maxaffix
     MinimumNumberofSigUses = args.minsig
+    maxwordtokens = args.maxwordtokens
 
     language, corpus, datafolder = load_config(args.language,
                                                args.corpus, args.datafolder)
 
     print("language: {}".format(language))
-    print("corpus: {}".format(corpus))
+    print("corpus file: {}".format(corpus))
     print("datafolder: {}".format(datafolder))
     proceed = input("proceed? [Y/n] ")
     if proceed and (proceed[0].lower() == "n"):
         sys.exit()
 
+    testPath = Path(datafolder, language, corpus)
+    if not testPath.exists():
+        print("Corpus file does not exist. Check file paths and names.")
+        sys.exit()
+
     main(language, corpus, datafolder,
-         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses)
+         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
+         maxwordtokens)
 

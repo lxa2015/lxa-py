@@ -3,9 +3,13 @@ import math
 import os
 from pathlib import Path
 import time
-#from fsm import State, Transducer, get_graph
 
 import networkx as nx
+
+import ngrams
+#from fsm import State, Transducer, get_graph
+
+
 
 """"     Signatures is a map: its keys are signatures. Its values are *sets* of stems.
      StemToWord is a map; its keys are stems.      Its values are *sets* of words.
@@ -23,7 +27,18 @@ def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
             stemList = sorted(SigToStems[sig])
             print(sig, len(stemList), ' '.join(stemList), file=f)
 
-def read_word_freq_file(infilename: Path, minimum_stem_length=None) -> dict:
+def read_word_freq_file(infilename: Path,
+                        minimum_stem_length=None, maxwordtokens=0) -> dict:
+
+    # infilename points to the wordlist to be used
+    *datafolder, language, _, corpus = infilename.parts
+    datafolder = str(Path(*datafolder))
+    infilename = Path(datafolder, language, 'ngrams',
+                      Path(corpus).stem + '_words.txt')
+
+    if not infilename.exists():
+        ngrams.main(language, corpus, datafolder, maxwordtokens)
+
     with infilename.open() as infile:
         lines = infile.readlines()
         word_frequencies = {}
