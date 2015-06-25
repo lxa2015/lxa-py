@@ -67,10 +67,10 @@ def main(language, corpus, datafolder, maxwordtokens=0):
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
 
-    corpusName = Path(corpus).stem
-
     if maxwordtokens:
-        corpusName = corpusName + str(maxwordtokens)
+        corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
+    else:
+        corpusName = Path(corpus).stem
 
     outfilenameWords = Path(outfolder, corpusName + "_words.txt")
     outfilenameBigrams = Path(outfolder, corpusName + "_bigrams.txt")

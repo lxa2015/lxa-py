@@ -90,7 +90,10 @@ def main(language, corpus, datafolder,
          MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
          maxwordtokens):
 
-    short_filename = Path(corpus).stem
+    if maxwordtokens:
+        corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
+    else:
+        corpusName = Path(corpus).stem
 
     # -------------------------------------------------------------------------#
     #       decide suffixing or prefixing
@@ -112,20 +115,21 @@ def main(language, corpus, datafolder,
     else:
         FindSuffixesFlag = False  # prefixal
 
-    wordlist, wordFreqDict = create_wordlist(language, corpus, datafolder)
+    wordlist, wordFreqDict = create_wordlist(language, corpus, datafolder,
+                                             maxwordtokens=maxwordtokens)
 
     outfolder = Path(datafolder, language, 'lxa')
 
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
 
-    stemfilename = Path(outfolder, '{}_stems.txt'.format(short_filename))
+    stemfilename = Path(outfolder, '{}_stems.txt'.format(corpusName))
 
     # TODO -- filenames not yet used in main()
-    outfile_Signatures_name = str(outfolder) + short_filename + "_Signatures.txt"
-    outfile_SigTransforms_name = str(outfolder) + short_filename + "_SigTransforms.txt"
-    outfile_FSA_name = str(outfolder) + short_filename + "_FSA.txt"
-    outfile_FSA_graphics_name = str(outfolder) + short_filename + "_FSA_graphics.png"
+    outfile_Signatures_name = str(outfolder) + corpusName + "_Signatures.txt"
+    outfile_SigTransforms_name = str(outfolder) + corpusName + "_SigTransforms.txt"
+    outfile_FSA_name = str(outfolder) + corpusName + "_FSA.txt"
+    outfile_FSA_graphics_name = str(outfolder) + corpusName + "_FSA_graphics.png"
 
     # --------------------------------------------------------------------------#
     #   create: BisigToTuple
@@ -169,7 +173,7 @@ def main(language, corpus, datafolder,
     # --------------------------------------------------------------------------#
     #   pickle SigToStems
     # --------------------------------------------------------------------------#
-    SigToStems_pkl_fname = Path(outfolder, short_filename + "_SigToStems.pkl")
+    SigToStems_pkl_fname = Path(outfolder, corpusName + "_SigToStems.pkl")
     with SigToStems_pkl_fname.open('wb') as f:
         pickle.dump(SigToStems, f)
     print('===> pickle file generated:', SigToStems_pkl_fname, flush=True)
@@ -212,7 +216,7 @@ def main(language, corpus, datafolder,
     #   output SigToStems
     # --------------------------------------------------------------------------#
 
-    SigToStems_outfilename = Path(outfolder, short_filename + "_SigToStems.txt")
+    SigToStems_outfilename = Path(outfolder, corpusName + "_SigToStems.txt")
     with SigToStems_outfilename.open('w') as f:
         for (idx, (sig, stemList)) in enumerate(SigToStemsSortedList):
             print(sig, len(stemList), file=f)
@@ -235,7 +239,7 @@ def main(language, corpus, datafolder,
     # --------------------------------------------------------------------------#
 
     mostFreqWordsNotInSigs_outfilename = Path(outfolder,
-                                              short_filename +
+                                              corpusName +
                                               "_mostFreqWordsNotInSigs.txt")
 
     with mostFreqWordsNotInSigs_outfilename.open('w') as f:
@@ -254,7 +258,7 @@ def main(language, corpus, datafolder,
     #   output the word types in induced paradigms
     # --------------------------------------------------------------------------#
 
-    WordsInSigs_outfilename = Path(outfolder, short_filename + "_WordsInSigs.txt")
+    WordsInSigs_outfilename = Path(outfolder, corpusName + "_WordsInSigs.txt")
 
     with WordsInSigs_outfilename.open('w') as f:
 
@@ -287,7 +291,7 @@ def to_be_handled():
 
     # July 15, 2014, Jackson Lee
 
-    outfile_Signatures_name_JL = outfolder + short_filename + "_Signatures-JL.txt"
+    outfile_Signatures_name_JL = outfolder + corpusName + "_Signatures-JL.txt"
     Signatures_outfile_JL = open(outfile_Signatures_name_JL, 'w')
 
 
@@ -296,7 +300,7 @@ def to_be_handled():
     #       write log file header | TODO keep this part or rewrite?
     # ------------------------------------------------------------------------------#
 
-    #    outfile_log_name            = outfolder + short_filename + "_log.txt"
+    #    outfile_log_name            = outfolder + corpusName + "_log.txt"
     #    log_file = open(outfile_log_name, "w")
     #    print("Language:", language, file=log_file)
     #    print("Minimum Stem Length:", MinimumStemLength,
@@ -461,7 +465,7 @@ def to_be_handled():
         print("Printed graph", str(loop), "before_merger")
         graph = morphology.createDoublePySubgraph(state1, state2)
         graph.layout(prog='dot')
-        filename = outfolder + short_filename + str(loop) + '_before_merger' + str(state1.index) + "-" + str(
+        filename = outfolder + corpusName + str(loop) + '_before_merger' + str(state1.index) + "-" + str(
             state2.index) + '.png'
         graph.draw(filename)
 

@@ -33,8 +33,13 @@ def read_word_freq_file(infilename: Path,
     # infilename points to the wordlist to be used
     *datafolder, language, _, corpus = infilename.parts
     datafolder = str(Path(*datafolder))
-    infilename = Path(datafolder, language, 'ngrams',
-                      Path(corpus).stem + '_words.txt')
+
+    if maxwordtokens:
+        corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
+    else:
+        corpusName = Path(corpus).stem
+
+    infilename = Path(datafolder, language, 'ngrams', corpusName + '_words.txt')
 
     if not infilename.exists():
         ngrams.main(language, corpus, datafolder, maxwordtokens)
