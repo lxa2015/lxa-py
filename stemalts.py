@@ -2,14 +2,13 @@ __author__ = 'Anton Melnikov'
 
 from argparse import ArgumentParser
 from collections import Counter, namedtuple, defaultdict
-from itertools import combinations, chain
+from itertools import combinations
 from pathlib import Path
 from pprint import pprint
-from statistics import mean
 
 from lxa5_module import read_word_freq_file
 
-from Levenshtein import opcodes, editops, ratio
+from Levenshtein import opcodes
 
 WordPair = namedtuple('WordPair', ['word1', 'word2',
                                    'comparison',
@@ -18,61 +17,6 @@ WordPattern = namedtuple('WordPattern', ['word_pair',
                                          'alternation_freq',
                                          'skeleton_freq'])
 RelatedStems = namedtuple('RelatedStems', 'related_words stems')
-
-
-class RelatedStemCounter(defaultdict):
-
-    def __init__(self):
-        super().__init__(list)
-
-    def get_related(self, word, min_similarity_ratio=0.65) -> RelatedStems:
-        related_words = set()
-        all_related_stems = []
-
-        for other_word in self:
-            current_stems = []
-
-            if (word != other_word
-                and ratio(word, other_word) >= min_similarity_ratio):
-                for stem_candidate in self[other_word]:
-                    if stem_candidate in word:
-                        current_stems.append(stem_candidate)
-                        related_words.add(other_word)
-            all_related_stems += current_stems
-
-        related_stems = RelatedStems(related_words, all_related_stems)
-        return related_stems
-
-    def get_related_once(self, word, min_similarity_ratio=0.65,
-                        words_covered=None):
-
-        related_stems = self.get_related(word, min_similarity_ratio)
-        related_words, all_related_stems = related_stems
-
-        for other_word in related_words:
-            if other_word != word:
-                related_related = self.get_related(other_word, min_similarity_ratio)
-                rr_words, rr_stems = related_related
-                for stem in rr_stems:
-                    if stem in word:
-                        all_related_stems.append(stem)
-
-        return all_related_stems
-
-
-
-    def count_related(self, word, min_similarity_ratio=0.65) -> Counter:
-        all_related_stems = self.get_related_once(word, min_similarity_ratio)
-        return Counter(all_related_stems)
-
-    def related_items(self, min_similarity_ratio=0.65):
-        for word in self:
-            related_stems = self.get_related_once(word, min_similarity_ratio)
-            yield word, related_stems
-
-    def counted_related_items(self, min_similarity_ratio=0.65):
-        for word, stems in self.related_items(min_similarity_ratio=0.65):
-            yield word, Counter(stems)
 
 def are_similar(word1: str, word2: str, max_diff_length=2,
                 allowed_op_kinds=None) -> (bool, tuple):
@@ -121,55 +65,55 @@ def make_pair(word1: str, word2: str) -> WordPair:
         return word_pair
 
 def find_pairs(corpus: list):
+    """
+    :param corpus:
+    :return skeletons, alternations, pairs:
+    """
+
     word_pairs = combinations(corpus, 2)
     alt_pairs = (make_pair(word1, word2) for word1, word2 in word_pairs)
 
-    # weed out "None"s
-    for pair in alt_pairs:
-        if pair:
-            yield pair
-
-def find_patterns(diff_pairs, min_alt_count=2, min_skeleton_count=0):
-    # search for ever skeleton/alternation pattern
-    # which occurs more than once
-
-    diff_pairs = list(diff_pairs)
     skeletons = Counter()
     alternations = Counter()
 
-    patterns = []
+    pairs = []
 
-    for word1, word2, comparison, skeleton, alts in diff_pairs:
-        # we can only work with one alternation for now
-        alternation = alts[0]
+    # weed out "None"s and count the frequencies of alternations and skeletons
+    for pair in alt_pairs:
+        if pair:
+            word1, word2, comparison, skeleton, alts = pair
+            # we can only work with one alternation for now
+            alternation = alts[0]
 
-        # get the skeleton before and after the alternation
-        pre_skeleton, post_skeleton = skeleton
-        skeletons[(pre_skeleton, post_skeleton)] += 1
-        alternations[alternation] += 1
+            # get the skeleton before and after the alternation
+            pre_skeleton, post_skeleton = skeleton
+            skeletons[(pre_skeleton, post_skeleton)] += 1
+            alternations[alternation] += 1
 
-    # iterate over the pairs again to find patterns
+            pairs.append(pair)
+
+    return alternations, skeletons, pairs
+
+def filter_pairs(diff_pairs, alternations, skeletons,
+                  min_alt_freq=5, min_skeleton_freq=3):
+    # search for ever skeleton/alternation pattern
+    # which occurs more than the given amount
+
+        # iterate over the pairs again to find patterns
     for word_pair in diff_pairs:
         alternation = word_pair.alternation[0]
         pre_skeleton, post_skeleton = word_pair.skeleton
-        if (alternations[alternation] >= min_alt_count
-            and skeletons[(pre_skeleton, post_skeleton)] > min_skeleton_count):
 
-            # put them in a tuple
-            alternation_freq = alternations[alternation]
-            skeleton_freq = skeletons[(pre_skeleton, post_skeleton)]
+        # check the frequencies
+        alternation_freq = alternations[alternation]
+        skeleton_freq = skeletons[(pre_skeleton, post_skeleton)]
+
+        if (alternation_freq >= min_alt_freq and
+            skeleton_freq >= min_skeleton_freq):
             pattern = WordPattern(word_pair, alternation_freq, skeleton_freq)
-            patterns.append(pattern)
-
-    return skeletons, alternations, patterns
-
-def filter_patterns(patterns, min_alt_freq=5, min_skeleton_freq=3):
-    for pattern in patterns:
-        if (pattern.skeleton_freq >= min_skeleton_freq
-            and pattern.alternation_freq >= min_alt_freq):
             yield pattern
 
-def run(corpus_path, min_stem_length, max_words,
+def run(corpus_path, min_stem_length,
         min_alternation_freq, min_skeleton_freq,
         verbose=False):
 
@@ -183,22 +127,20 @@ def run(corpus_path, min_stem_length, max_words,
     if verbose:
         print('finding alternation pairs...')
 
-    diff_pairs = find_pairs(corpus)
+    alternations, skeletons, diff_pairs = find_pairs(corpus)
 
     if verbose:
         print('finding patterns in pairs...')
 
-    skeletons, alternations, patterns = find_patterns(diff_pairs)
+    pairs = filter_pairs(diff_pairs, alternations, skeletons,
+                             min_alt_freq=min_alternation_freq,
+                             min_skeleton_freq=min_skeleton_freq)
 
     if verbose:
         print('filtering the patterns')
 
-    filtered_patterns = filter_patterns(patterns,
-                                        min_alternation_freq,
-                                        min_skeleton_freq)
-
     corpus_name = corpus_path.stem
-    print_patterns(filtered_patterns, corpus_name)
+    print_patterns(pairs, corpus_name)
 
 
 def print_diff_pairs(diff_pairs):
