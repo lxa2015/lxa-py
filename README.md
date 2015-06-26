@@ -37,5 +37,5 @@ To run any of the core components with this directory structure (assuming the `.
 
 After a command like this is run for the first time, `config.json` is created to store the parameters just entered. This allows the user to conveniently run again and reuse the same parameters simply by `python3 <file>` without the optional arguments.
 
-Sample corpus files (including `english-brown.txt` for the English Brown corpus) can be found [here](https://github.com/JacksonLLee/datasets) (to be forked to the lxa2015 group here when it matures).
+Sample corpus files (including `english-brown.txt` for the English Brown corpus) can be found [here](https://github.com/lxa2015/datasets).
 
