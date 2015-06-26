@@ -14,7 +14,7 @@ Currently, the following three major parameters are especially important:
 
 - [language]: the name of the language under study
 - [corpus]: the filename of the corpus text (including the file extension, if any)
-- [datafolder]: the directory where the folder [language] (containing [corpus]) is located
+- [datafolder]: the directory where the folder `[language]` (containing `[corpus]`) is located
 
 The following directory structure is assumed to be in place before anything runs:
 
