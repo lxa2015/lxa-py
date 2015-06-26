@@ -22,7 +22,7 @@ The following directory structure is assumed to be in place before anything runs
         [language]/
             [corpus]
 
-All results and derived datasets will be stored under the [[language]] folder.
+All results and derived datasets will be stored under the `[language]` folder.
 
 An example of the directory structure looks like this:
 
