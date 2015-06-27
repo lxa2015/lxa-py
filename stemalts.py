@@ -1,14 +1,16 @@
 __author__ = 'Anton Melnikov'
 
 from argparse import ArgumentParser
-from collections import Counter, namedtuple
+from collections import Counter, namedtuple, defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from copy import deepcopy
 from functools import partial
 from itertools import combinations, islice, chain
 from math import factorial
 from os import cpu_count
 from pathlib import Path
-from pprint import pprint
+from types import GeneratorType
+from pprint import pprint, pformat
 
 from lxa5_module import read_word_freq_file
 
@@ -20,7 +22,101 @@ WordPair = namedtuple('WordPair', ['word1', 'word2',
 WordPattern = namedtuple('WordPattern', ['word_pair',
                                          'alternation_freq',
                                          'skeleton_freq'])
-RelatedStems = namedtuple('RelatedStems', 'related_words stems')
+
+class AlternationPairs:
+    def __init__(self):
+        self.skeletons = defaultdict(set)
+        self.alternations = defaultdict(set)
+        self._skeleton_counter = Counter()
+        self._alternation_counter = Counter()
+        self.__pairs = []
+
+    def __repr__(self):
+        return 'AlternationPairs({})'.format(pformat(self.__pairs))
+
+    def __len__(self):
+        return len(self.__pairs)
+
+    def __iter__(self):
+        return iter(self.__pairs)
+
+    def add(self, item: WordPair):
+        # store the index to this pair, which is the current size of the list of pairs
+        skeleton = item.skeleton
+        alternation = item.alternation
+
+        # only add the item if it's not already contained by the list
+        if item not in self.__pairs:
+            index = len(self)
+            self.__pairs.append(item)
+
+            self.alternations[alternation].add(index)
+            self._alternation_counter[alternation] += 1
+
+            self.skeletons[skeleton].add(index)
+            self._skeleton_counter[skeleton] += 1
+
+    def get_pairs(self, skeleton=None, alternation=None) -> GeneratorType:
+        if skeleton and alternation:
+            # get the intersection indexes
+            indexes = self.skeletons[skeleton].intersection(
+                self.alternations[alternation])
+        elif skeleton:
+            indexes = self.skeletons[skeleton]
+        elif alternation:
+            indexes = self.alternations[alternation]
+        else:
+            return
+
+        # get all the items at those indices
+        for index in indexes:
+            yield self.__pairs[index]
+
+    def get_one(self, skeleton=None, alternation=None) -> WordPair:
+        indexes = self.get_pairs(skeleton=skeleton, alternation=alternation)
+        return indexes.__next__()
+
+    def remove_pair(self, pair: WordPair):
+        """
+        This method should not be used directly.
+        """
+        pair_index = self.__pairs.index(pair)
+        self.__pairs[pair_index] = None
+
+    def __rebuild_indexes(self):
+        self.__pairs = [pair for pair in self.__pairs if pair]
+        self.skeletons = defaultdict(set)
+        self.alternations = defaultdict(set)
+        for n, pair in enumerate(self.__pairs):
+            skeleton, alternation = pair.skeleton, pair.alternation
+            self.skeletons[skeleton].add(n)
+            self._skeleton_counter[skeleton] += 1
+
+            self.alternations[alternation].add(n)
+            self._alternation_counter[alternation] += 1
+
+    def itersorted(self, key='alternation_freq', reverse=True):
+
+        if key == 'alternation_freq':
+            for alternation, count in self._alternation_counter.most_common():
+                for pair in self.get_pairs(alternation=alternation):
+                    yield pair
+        elif key == 'skeleton_freq':
+            for skeleton, count in self._skeleton_counter.most_common():
+                for pair in self.get_pairs(skeleton=skeleton):
+                    yield pair
+        else:
+            return
+
+    def filter_pairs(self, min_alternation_frequency, min_skeleton_frequency):
+        for pair in self:
+            skeleton, alternation = pair.skeleton, pair.alternation
+            if (self._alternation_counter[alternation] < min_alternation_frequency
+                or self._skeleton_counter[skeleton] < min_skeleton_frequency):
+                self.remove_pair(pair)
+        self.__rebuild_indexes()
+
+
 
 
 def are_similar(word1: str, word2: str, max_diff_length=2,
@@ -66,7 +162,8 @@ def make_pair(word1: str, word2: str, max_diff_length=2) -> WordPair:
 
         word_pair = WordPair(word1, word2,
                              comp_chars,
-                             skeleton, alternations)
+                             tuple(skeleton),
+                             alternations)
 
         return word_pair
 
@@ -97,10 +194,10 @@ def make_chunks(sequence, num_chunks, num_elements):
 
 
 def find_pairs(corpus: list, max_alternation_length=2,
-               verbose=False):
+               verbose=False) -> AlternationPairs:
     """
-    :param corpus:
-    :return skeletons, alternations, pairs:
+    :param corpus, max_alternation_length=2, verbose=False:
+    :return diff_pairs:
     """
 
     word_pairs = combinations(corpus, 2)
@@ -108,7 +205,7 @@ def find_pairs(corpus: list, max_alternation_length=2,
     # n! / r! / (n-r)!
     num_pairs = factorial(num_words) // 2 // factorial(num_words - 2)
     if verbose:
-        print('({} pairs to analyse)'.format(num_pairs))
+        print('({:,} pairs to analyse)'.format(num_pairs))
 
     # put the combinations in chunks for parallel processing
     pair_chunks = make_chunks(word_pairs, cpu_count(), num_pairs)
@@ -122,10 +219,7 @@ def find_pairs(corpus: list, max_alternation_length=2,
     # flatten the pairs
     all_pairs = chain.from_iterable(alt_pairs)
 
-    skeletons = Counter()
-    alternations = Counter()
-
-    pairs = []
+    diff_pairs = AlternationPairs()
 
     # add pairs and count the frequencies of alternations and skeletons
     for pair in all_pairs:
@@ -134,33 +228,25 @@ def find_pairs(corpus: list, max_alternation_length=2,
         alternation = alts[0]
 
         # get the skeleton before and after the alternation
-        pre_skeleton, post_skeleton = skeleton
-        skeletons[(pre_skeleton, post_skeleton)] += 1
-        alternations[alternation] += 1
+        one_alt_pair = WordPair(word1, word2, comparison,
+                                skeleton, alternation)
+        diff_pairs.add(one_alt_pair)
 
-        pairs.append(pair)
-
-    return alternations, skeletons, pairs
+    return diff_pairs
 
 
-def filter_pairs(diff_pairs, alternations, skeletons,
+def filter_pairs(diff_pairs: AlternationPairs,
                  min_alt_freq=5, min_skeleton_freq=3):
     # search for ever skeleton/alternation pattern
     # which occurs more than the given amount
+    diff_pairs.filter_pairs(min_alt_freq, min_skeleton_freq)
 
-    # iterate over the pairs again to find patterns
-    for word_pair in diff_pairs:
-        alternation = word_pair.alternation[0]
-        pre_skeleton, post_skeleton = word_pair.skeleton
 
-        # check the frequencies
-        alternation_freq = alternations[alternation]
-        skeleton_freq = skeletons[(pre_skeleton, post_skeleton)]
+def combine_patterns(alt_pairs,
+                     skeletons: Counter):
+    for skeleton in skeletons:
+        ...
 
-        if (alternation_freq >= min_alt_freq and
-                    skeleton_freq >= min_skeleton_freq):
-            pattern = WordPattern(word_pair, alternation_freq, skeleton_freq)
-            yield pattern
 
 
 def run(corpus_path, min_stem_length, max_alternation_length,
@@ -176,14 +262,13 @@ def run(corpus_path, min_stem_length, max_alternation_length,
     if verbose:
         print('finding pairs in alternations...')
 
-    alternations, skeletons, diff_pairs = find_pairs(corpus,
-                                                     max_alternation_length=max_alternation_length,
-                                                     verbose=verbose)
-
+    diff_pairs = find_pairs(corpus,
+                             max_alternation_length=max_alternation_length,
+                             verbose=verbose)
     if verbose:
         print('finding patterns in pairs...')
 
-    pairs = filter_pairs(diff_pairs, alternations, skeletons,
+    filter_pairs(diff_pairs,
                          min_alt_freq=min_alternation_freq,
                          min_skeleton_freq=min_skeleton_freq)
 
@@ -191,7 +276,7 @@ def run(corpus_path, min_stem_length, max_alternation_length,
         print('writing the patterns...')
 
     corpus_name = corpus_path.stem
-    print_patterns(pairs, corpus_name)
+    print_patterns(diff_pairs, corpus_name)
     if verbose:
         print('done')
 
@@ -207,11 +292,8 @@ def print_diff_pairs(diff_pairs):
         print(word1, word2, str_diffs)
 
 
-def print_patterns(patterns, name):
-    # sort by frequency of alternation pattern
-    sorted_patterns = sorted(patterns, key=lambda x: (x.alternation_freq,
-                                                      x.word_pair.alternation),
-                             reverse=True)
+def print_patterns(patterns: AlternationPairs, name):
+    # sort by frequency of alternation patterns
 
     results_dir = Path('results')
     if not results_dir.exists():
@@ -219,9 +301,12 @@ def print_patterns(patterns, name):
 
     new_file_path = Path(results_dir, 'apophony_{}.txt'.format(name))
     with new_file_path.open('w') as new_file:
-        for word_pair, alt_count, skeleton_count in sorted_patterns:
+        for word_pair in patterns.itersorted():
             pre_skeleton, alternation, post_skeleton = word_pair.comparison
             joined_alt = '/'.join(alternation)
+            alt_count = patterns._alternation_counter[word_pair.alternation]
+            skeleton_count = patterns._skeleton_counter[word_pair.skeleton]
+
             print('{} {}\t{}[{}]{}\talternation occurrence: {};\tskeleton occurrence: {}'
                   .format(word_pair.word1, word_pair.word2,
                           pre_skeleton, joined_alt, post_skeleton,
