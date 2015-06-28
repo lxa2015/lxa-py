@@ -6,12 +6,13 @@
 
 #------------------------------------------------------------------------------#
 
-import sys
 import argparse
+from distutils.util import strtobool
 import json
 import time
 import pickle
 from pathlib import Path
+import sys
 
 from lxa5_module import (read_word_freq_file, MakeBiSignatures,
                          MakeStemToWords, OutputLargeDict,
@@ -654,13 +655,12 @@ if __name__ == "__main__":
     print("corpus file: {}".format(corpus))
     print("datafolder: {}".format(datafolder))
     proceed = input("proceed? [Y/n] ")
-    if proceed and (proceed[0].lower() == "n"):
+    if not strtobool(proceed):
         sys.exit()
 
     testPath = Path(datafolder, language, corpus)
     if not testPath.exists():
-        print("Corpus file does not exist. Check file paths and names.")
-        sys.exit()
+        sys.exit("Corpus file does not exist. Check file paths and names.")
 
     main(language, corpus, datafolder,
          MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
