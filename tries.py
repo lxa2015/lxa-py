@@ -195,13 +195,14 @@ def OutputTrie(outfile, WordsBroken, reverse=False):
 
 def lengthofcommonprefix(s1, s2):
     # ensure that s1 is not longer than s2
-    if len(s1) > len(s2):
+    length = len(s1)
+    if length > len(s2):
         lengthofcommonprefix(s2, s1)
 
-    for i in range(len(s1)):
+    for i in range(length):
         if s1[i] != s2[i]:
             return i
-    return len(s1)
+    return length
 
 
 def main(language, corpus, datafolder,
@@ -271,17 +272,6 @@ def main(language, corpus, datafolder,
     #--------------------------------------------------------------------------#
     #        Print tries (left-to-right, right-to-left)
     #--------------------------------------------------------------------------# 
-
-    # ------------- Left to Right  ---------------------------------------------
-
-#    with outfile_trieLtoR_name.open("w") as f:
-#        for i in range(len(WordsBrokenLtoR)):
-#            for j in range(len(WordsBrokenLtoR[i])):
-#                thispiece = WordsBrokenLtoR[i][j]
-#                print(thispiece, file=f, end="\t")
-#            print(file=f)
-
-    #----------------- Right to Left --------------------------------------
 
     OutputTrie(outfile_trieLtoR_name, WordsBrokenLtoR)
     OutputTrie(outfile_trieRtoL_name, WordsBrokenRtoL, reverse=True)
