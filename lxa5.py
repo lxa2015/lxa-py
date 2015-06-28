@@ -14,9 +14,10 @@ import pickle
 from pathlib import Path
 
 from lxa5_module import (read_word_freq_file, MakeBiSignatures,
-                         MakeStemToWords, MakeStemCounts,
+                         MakeStemToWords, OutputLargeDict,
                          OutputStemFile, MakeSigToStems,
-                         MakeStemToSig, MakeWordToSigs)
+                         MakeStemToSig, MakeWordToSigs,
+                         MakeAffixToSigs, OutputAffixFile)
 
 #------------------------------------------------------------------------------#
 #        user modified variables
@@ -123,21 +124,22 @@ def main(language, corpus, datafolder,
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
 
-    stemfilename = Path(outfolder, '{}_stems.txt'.format(corpusName))
-
     # TODO -- filenames not yet used in main()
     outfile_Signatures_name = str(outfolder) + corpusName + "_Signatures.txt"
     outfile_SigTransforms_name = str(outfolder) + corpusName + "_SigTransforms.txt"
     outfile_FSA_name = str(outfolder) + corpusName + "_FSA.txt"
     outfile_FSA_graphics_name = str(outfolder) + corpusName + "_FSA_graphics.png"
 
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #   create: BisigToTuple
     #                  (key: tuple of bisig | value: set of (stem, word1, word2)
     #           StemToWords (key: stem | value: set of words)
-    #           StemCounts (key: stem | value: int --- sum of counts 
-    #                                       for each word in StemToWords[stem] )
-    # --------------------------------------------------------------------------#
+    #           SigToStems  (key: tuple of sig | value: set of stems )
+    #           StemToSig   (key: str of stem  | value: tuple of sig )
+    #           WordToSigs  (key: str of word  | value: set of sigs )
+    #           AffixToSigs (key: str of affix | value: set of sigs )
+    # -------------------------------------------------------------------------#
+
     BisigToTuple = MakeBiSignatures(wordlist, FindSuffixesFlag,
                                     MinimumStemLength, MaximumAffixLength)
     print("BisigToTuple ready", flush=True)
@@ -145,20 +147,6 @@ def main(language, corpus, datafolder,
     StemToWords = MakeStemToWords(BisigToTuple, MinimumNumberofSigUses)
     print("StemToWords ready", flush=True)
 
-    StemCounts = MakeStemCounts(StemToWords, wordFreqDict)
-    print('StemCounts ready', flush=True)
-
-    # --------------------------------------------------------------------------#
-    #      output stem file
-    # --------------------------------------------------------------------------#
-    OutputStemFile(stemfilename, StemToWords, StemCounts)
-    print('===> stem file generated:', stemfilename, flush=True)
-
-    # --------------------------------------------------------------------------#
-    #   create: SigToStems  (key: tuple of sig | value: set of stems )
-    #           StemToSig   (key: str of stem  | value: tuple of sig )
-    #           WordToSigs  (key: str of word  | value: set of sigs )
-    # --------------------------------------------------------------------------#
     SigToStems = MakeSigToStems(StemToWords, FindSuffixesFlag,
                                 MaximumAffixLength, MinimumNumberofSigUses)
     print("SigToStems ready", flush=True)
@@ -169,74 +157,55 @@ def main(language, corpus, datafolder,
     WordToSigs = MakeWordToSigs(StemToWords, StemToSig)
     print("WordToSigs ready", flush=True)
 
+    AffixToSigs = MakeAffixToSigs(SigToStems)
+    print("AffixToSigs ready", flush=True)
 
-    # --------------------------------------------------------------------------#
-    #   pickle SigToStems
-    # --------------------------------------------------------------------------#
-    SigToStems_pkl_fname = Path(outfolder, corpusName + "_SigToStems.pkl")
-    with SigToStems_pkl_fname.open('wb') as f:
-        pickle.dump(SigToStems, f)
-    print('===> pickle file generated:', SigToStems_pkl_fname, flush=True)
-
-    #    # read python dict back from the file
-    #    pkl_file = open('myfile.pkl', 'rb')
-    #    mydict2 = pickle.load(pkl_file)
-    #    pkl_file.close()
-
-
-
-
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #   generate graphs for several dicts
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    GenerateGraphFromDict(StemToWords, outfolder, 'StemToWords.gexf')
     #    GenerateGraphFromDict(SigToStems, outfolder, 'SigToStems.gexf')
     #    GenerateGraphFromDict(WordToSigs, outfolder, 'WordToSigs.gexf')
     #    GenerateGraphFromDict(StemToSig, outfolder, 'StemToSig.gexf')
+    # -------------------------------------------------------------------------#
 
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
+    #      output stem file
+    # -------------------------------------------------------------------------#
 
-    nWordsInParadigms = 0
-    SigToStemsSortedList = sorted(SigToStems.items(),
-                                  key=lambda x: len(x[1]), reverse=True)
-    print('nSigs', len(SigToStemsSortedList))
-    for (idx, (sig, stemList)) in enumerate(SigToStemsSortedList):
-        nStems = len(stemList)
-        nWordsInParadigms = nWordsInParadigms + nStems * len(sig)
-    # print(idx, sig)
-    #        print(nStems, end=' ')
-    #        print(sig, len(stemList))
-    #        if idx > 20:
-    #            break
+    stemfilename = Path(outfolder, '{}_StemToWords.txt'.format(corpusName))
+    OutputStemFile(stemfilename, StemToWords, wordFreqDict)
+    print('===> stem file generated:', stemfilename, flush=True)
 
-    print('nWordsInParadigms:', nWordsInParadigms)
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
+    #      output affix file
+    # -------------------------------------------------------------------------#
 
-    # --------------------------------------------------------------------------#
+    affixfilename = Path(outfolder, '{}_AffixToSigs.txt'.format(corpusName))
+#    OutputAffixFile(affixfilename, AffixToSigs)
+    OutputLargeDict(affixfilename, AffixToSigs, howmanyperline=5)
+    print('===> affix file generated:', affixfilename, flush=True)
+
+    # -------------------------------------------------------------------------#
+    #   pickle SigToStems # TODO: pickle or json?
+    # -------------------------------------------------------------------------#
+    #    SigToStems_pkl_fname = Path(outfolder, corpusName + "_SigToStems.pkl")
+    #    with SigToStems_pkl_fname.open('wb') as f:
+    #        pickle.dump(SigToStems, f)
+    #    print('===> pickle file generated:', SigToStems_pkl_fname, flush=True)
+    # -------------------------------------------------------------------------#
+
+    # -------------------------------------------------------------------------#
     #   output SigToStems
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     SigToStems_outfilename = Path(outfolder, corpusName + "_SigToStems.txt")
-    with SigToStems_outfilename.open('w') as f:
-        for (idx, (sig, stemList)) in enumerate(SigToStemsSortedList):
-            print(sig, len(stemList), file=f)
-
-        print(file=f)
-
-        for (sig, stemList) in SigToStemsSortedList:
-            print(sig, len(stemList), file=f)
-            for (idx, stem) in enumerate(sorted(stemList), 1):
-                print(stem, end=' ', file=f)
-                if idx % 10 == 0:
-                    print(file=f)
-            print(file=f)
-            print(file=f)
-
+    OutputLargeDict(SigToStems_outfilename, SigToStems)
     print('===> output file generated:', SigToStems_outfilename, flush=True)
 
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #   output the most freq word types not in any induced paradigms {the, of..}
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     mostFreqWordsNotInSigs_outfilename = Path(outfolder,
                                               corpusName +
@@ -254,9 +223,9 @@ def main(language, corpus, datafolder,
     print('===> output file generated:',
           mostFreqWordsNotInSigs_outfilename, flush=True)
 
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #   output the word types in induced paradigms
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     WordsInSigs_outfilename = Path(outfolder, corpusName + "_WordsInSigs.txt")
 
@@ -273,8 +242,28 @@ def main(language, corpus, datafolder,
     print('===> output file generated:',
           WordsInSigs_outfilename, flush=True)
 
+    # -------------------------------------------------------------------------#
+    #   output the word types NOT in induced paradigms
+    # -------------------------------------------------------------------------#
 
-# ------------------------------------------------------------------------------#
+    WordsNotInSigs_outfilename = Path(outfolder,
+                                      corpusName + "_WordsNotInSigs.txt")
+
+    with WordsNotInSigs_outfilename.open('w') as f:
+
+        wordFreqInSigListSorted = [(word, freq) for (word, freq) in
+                                   sorted(wordFreqDict.items(),
+                                          key=lambda x: x[1], reverse=True)
+                                   if word not in WordToSigs]
+
+        for (word, freq) in wordFreqInSigListSorted:
+            print(word, freq, file=f)
+
+    print('===> output file generated:',
+          WordsNotInSigs_outfilename, flush=True)
+
+
+# -----------------------------------------------------------------------------#
 
 # TODO: bring the following back later
 

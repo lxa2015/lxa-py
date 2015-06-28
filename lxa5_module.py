@@ -18,6 +18,47 @@ import ngrams
      StemCounts is a map. Its keys are words.     Its values are corpus counts of stems.
 """ #---------------------------------------------------------------------------------------------------------------------------------------------#
 
+def OutputAffixFile(affixfilename, AffixToSigs):
+    AffixToSigsSortedList = [affix_sigSet for affix_sigSet in
+                             sorted(AffixToSigs.items(),
+                                    key=lambda x: len(x[1]), reverse=True)]
+
+    with affixfilename.open('w') as f:
+        for affix, sigSet in AffixToSigsSortedList:
+            print(affix, len(sigSet),
+                  ' '.join(sorted([str(x) for x in sigSet])), file=f)
+
+def MakeAffixToSigs(SigToStems):
+    AffixToSigs = dict()
+
+    for sig in SigToStems.keys():
+        for affix in sig:
+            if affix not in AffixToSigs:
+                AffixToSigs[affix] = set()
+            AffixToSigs[affix].add(sig)
+
+    return AffixToSigs
+
+def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
+    with outfilename.open('w') as f:
+        inputdictSortedList = sorted(inputdict.items(),
+                                      key=lambda x: len(x[1]), reverse=True)
+
+        # this function is originally used for outputting SigToStems
+        # so the variable names carry over here
+        for (idx, (sig, stemList)) in enumerate(inputdictSortedList):
+            print(sig, len(stemList), file=f)
+        print(file=f)
+
+        for (sig, stemList) in inputdictSortedList:
+            print(sig, len(stemList), file=f)
+            for (idx, stem) in enumerate(sorted(stemList), 1):
+                print(stem, end=' ', file=f)
+                if idx % howmanyperline == 0:
+                    print(file=f)
+            print(file=f)
+            print(file=f)
+
 
 def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
 
@@ -1457,6 +1498,8 @@ def find_N_highest_weight_affix (wordlist, FindSuffixesFlag):
 #----------------------------------------------------------------------------------------------------------------------------#
 
 def MakeStemCounts(StemToWord, wordFreqDict):
+    #   StemCounts (key: stem | value: int --- sum of counts 
+    #                             for each word in StemToWords[stem] )
     StemCounts = dict()
     for stem in StemToWord:
         StemCounts[stem] = 0
@@ -1478,7 +1521,9 @@ def MakeStemToWords(BisigToTuple, MinimumNumberofSigUses):
                 StemToWord[stem].add(word2)
     return StemToWord
 
-def OutputStemFile(stemfilename: Path, StemToWord, StemCounts):
+def OutputStemFile(stemfilename: Path, StemToWord, wordFreqDict):
+    StemCounts = MakeStemCounts(StemToWord, wordFreqDict)
+
     with stemfilename.open('w') as stems_outfile:
         for stem in sorted(StemToWord.keys()):             
             print(stem, StemCounts[stem], ' '.join(StemToWord[stem]),
