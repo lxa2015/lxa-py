@@ -10,7 +10,6 @@ import sys
 import argparse
 import json
 import time
-import pickle
 from pathlib import Path
 
 from lxa5_module import (read_word_freq_file, MakeBiSignatures,
@@ -187,7 +186,7 @@ def main(language, corpus, datafolder,
     print('===> affix file generated:', affixfilename, flush=True)
 
     # -------------------------------------------------------------------------#
-    #   pickle SigToStems # TODO: pickle or json?
+    #   pickle SigToStems # TODO: probably switching to json
     # -------------------------------------------------------------------------#
     #    SigToStems_pkl_fname = Path(outfolder, corpusName + "_SigToStems.pkl")
     #    with SigToStems_pkl_fname.open('wb') as f:
@@ -202,6 +201,14 @@ def main(language, corpus, datafolder,
     SigToStems_outfilename = Path(outfolder, corpusName + "_SigToStems.txt")
     OutputLargeDict(SigToStems_outfilename, SigToStems)
     print('===> output file generated:', SigToStems_outfilename, flush=True)
+
+    # -------------------------------------------------------------------------#
+    #   output WordToSigs
+    # -------------------------------------------------------------------------#
+
+    WordToSigs_outfilename = Path(outfolder, corpusName + "_WordToSigs.txt")
+    OutputLargeDict(WordToSigs_outfilename, WordToSigs)
+    print('===> output file generated:', WordToSigs_outfilename, flush=True)
 
     # -------------------------------------------------------------------------#
     #   output the most freq word types not in any induced paradigms {the, of..}
@@ -491,118 +498,6 @@ def to_be_handled():
             state_changed_2.index) + '.png'
         print("Printed graph", str(loop), "after_merger")
         graph.draw(outfile_FSA_graphics_name)
-
-
-        # ------------------------------------------------------------------------------#
-    # ------------------------------------------------------------------------------#
-    #        User inquiries about morphology
-    # ------------------------------------------------------------------------------#
-    # ------------------------------------------------------------------------------#
-
-    # morphology_copy = morphology.MakeCopy()
-
-    # class parseChunk:
-    #    def __init__(self, morph, rString, edge= None):
-    #        self.morph         = morph
-    #        self.edge         = edge
-    #        self.remainingString     = rString
-    #        if (edge):
-    #            self.fromState = self.edge.fromState
-    #            self.toState   = self.edge.toState
-    #        else:
-    #            self.fromState = None
-    #            self.toState = None
-    #    def Copy (self, otherChunk):
-    #        self.morph         = otherChunk.morph
-    #        self.edge         = otherChunk.edge
-    #        self.remainingString     = otherChunk.remainingString
-
-    # initialParseChain = list()
-    # CompletedParses = list()
-    # IncompleteParses = list()
-    # word = ""
-    # while True:
-    #    word = raw_input('Inquiry about a word: ')
-    #    if word == "exit":
-    #        break
-    #    if word == "State":
-    #        while True:
-    #            stateno = raw_input("State number:")
-    #            if stateno == "" or stateno == "exit":
-    #                break
-    #            stateno = int(stateno)    
-    #            for state in morphology.States:
-    #                if state.index == stateno:
-    #                    break    
-    #            state = morphology.States[stateno]
-    #            for edge in state.getOutgoingEdges():
-    #                print "Edge number", edge.index 
-    #                i = 0
-    #                for morph in edge.labels:
-    #                    print "%12s" % morph,
-    #                    i+=1
-    #                    if i%6 == 0: print 
-    #            print "\n\n"        
-    #            continue
-    #    if word == "Edge":
-    #        while True:
-    #            edgeno = raw_input("Edge number:")
-    #            if edgeno == "" or edgeno == "exit":
-    #                break
-    #            edgeno = int(edgeno)
-    #            for edge in morphology.Edges:
-    #                if edge.index == edgeno:
-    #                    break
-    #            print "From state", morphology.Edges[edgeno].fromState.index, "To state", morphology.Edges[edgeno].toState.index
-    #            for edge in morphology.Edges:
-    #                if edge.index == int(edgeno):
-    #                    morphlist = list(edge.labels)
-    #            for i in range(len( morphlist )):
-    #                print "%12s" % morphlist[i],
-    #                if i%6 == 0:
-    #                    print    
-    #            print "\n\n"
-    #            continue
-    #    if word == "graph":
-    #        while True:
-    #            stateno = raw_input("Graph state number:")
-    #            
-    #    del CompletedParses[:]
-    #    del IncompleteParses[:]
-    #    del initialParseChain[:]
-    #    startingParseChunk = parseChunk("", word)
-    #    startingParseChunk.toState = morphology.startState
-
-    #    initialParseChain.append(startingParseChunk)
-    #    IncompleteParses.append(initialParseChain)
-    #    while len(IncompleteParses) > 0 :
-    #        CompletedParses, IncompleteParses = morphology.lparse(CompletedParses, IncompleteParses)
-    #    if len(CompletedParses) == 0: print "no analysis found." 
-    #     
-    #    for parseChain in CompletedParses:
-    #        for thisParseChunk in  parseChain:            
-    #            if (thisParseChunk.edge):                 
-    #                print "\t",thisParseChunk.morph,  
-    #        print 
-    #    print
-
-    #    for parseChain in CompletedParses:
-    #        print "\tStates: ",
-    #        for thisParseChunk in  parseChain:            
-    #            if (thisParseChunk.edge):                 
-    #                print "\t",thisParseChunk.fromState.index, 
-    #        print "\t",thisParseChunk.toState.index      
-    #    print 
-
-    #    for parseChain in CompletedParses:
-    #        print "\tEdges: ",
-    #        for thisParseChunk in  parseChain:            
-    #            if (thisParseChunk.edge):                 
-    #                print "\t",thisParseChunk.edge.index,
-    #        print
-    #    print "\n\n"
-
-
 
     # ---------------------------------------------------------------------------------------------------------------------------#
     # We create a list of words, each word with its signature transform (so DOGS is turned into NULL.s_s, for example)
