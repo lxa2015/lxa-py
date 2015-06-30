@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import pickle
 import json
+from distutils.util import strtobool
 
 from manifold_module import (GetMyWords, GetContextArray,
                              Normalize, compute_incidence_graph,
@@ -192,13 +193,13 @@ if __name__ == "__main__":
     print("corpus file: {}".format(corpus))
     print("datafolder: {}".format(datafolder))
     proceed = input("proceed? [Y/n] ")
-    if proceed and (proceed[0].lower() == "n"):
-        sys.exit()
+    if proceed and not strtobool(proceed):
+        sys.exit() # if "proceed" is empty, then false (= good to go)
 
     testPath = Path(datafolder, language, corpus)
     if not testPath.exists():
-        print("Corpus file does not exist. Check file paths and names.")
-        sys.exit()
+        sys.exit('Corpus file "{}" does not exist. '
+                 'Check file paths and names.'.format(str(testPath) ))
 
     main(language, corpus, datafolder,
          maxwordtypes, nNeighbors, nEigenvectors)
