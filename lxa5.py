@@ -555,7 +555,9 @@ if __name__ == "__main__":
 
     testPath = Path(datafolder, language, corpus)
     if not testPath.exists():
-        sys.exit("Corpus file does not exist. Check file paths and names.")
+        sys.exit('Corpus file "{}" does not exist. Check file paths and names.'.format(
+            str(testPath)
+        ))
 
     main(language, corpus, datafolder,
          MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
