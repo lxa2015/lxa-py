@@ -550,8 +550,8 @@ if __name__ == "__main__":
     print("corpus file: {}".format(corpus))
     print("datafolder: {}".format(datafolder))
     proceed = input("proceed? [Y/n] ")
-    if not strtobool(proceed):
-        sys.exit()
+    if proceed and not strtobool(proceed):
+        sys.exit() # if "proceed" is empty, then false (= good to go)
 
     testPath = Path(datafolder, language, corpus)
     if not testPath.exists():

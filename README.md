@@ -7,6 +7,7 @@ This is the Python version of Linguistica, version 5.0, currently under active d
 - ngrams.py
 - manifold.py
 - tries.py
+- phon.py
 
 Run this for what parameters can be changed:
 
