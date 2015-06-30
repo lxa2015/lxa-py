@@ -3,7 +3,6 @@ __author__ = 'Anton Melnikov'
 from argparse import ArgumentParser
 from collections import Counter, namedtuple, defaultdict
 from concurrent.futures import ProcessPoolExecutor
-from copy import deepcopy
 from functools import partial
 from itertools import combinations, islice, chain
 from math import factorial
@@ -25,14 +24,13 @@ WordPattern = namedtuple('WordPattern', ['word_pair',
 
 class AlternationPairs:
     def __init__(self):
+        self.__pairs = {}
+
         self.skeletons = defaultdict(set)
         self.alternations = defaultdict(set)
+
         self._skeleton_counter = Counter()
         self._alternation_counter = Counter()
-        self.__pairs = []
-
-        # to keep track of what's in the list
-        self.__hashes = set()
 
     def __repr__(self):
         return 'AlternationPairs({})'.format(pformat(self.__pairs))
@@ -41,11 +39,11 @@ class AlternationPairs:
         return len(self.__pairs)
 
     def __iter__(self):
-        return iter(self.__pairs)
+        return iter(self.__pairs.values())
 
     def __contains__(self, item: WordPair):
         item_hash = hash(item)
-        return item_hash in self.__hashes
+        return item_hash in self.__pairs
 
 
     def add(self, item: WordPair):
@@ -56,36 +54,33 @@ class AlternationPairs:
             alternation = item.alternation
             item_hash = hash(item)
 
-            index = len(self)
-            self.__pairs.append(item)
+            self.__pairs[item_hash] = item
 
-            self.__hashes.add(item_hash)
-
-            self.alternations[alternation].add(index)
+            self.alternations[alternation].add(item_hash)
             self._alternation_counter[alternation] += 1
 
-            self.skeletons[skeleton].add(index)
+            self.skeletons[skeleton].add(item_hash)
             self._skeleton_counter[skeleton] += 1
 
     def get_pairs(self, skeleton=None, alternation=None) -> GeneratorType:
         if skeleton and alternation:
-            # get the intersection indexes
-            indexes = self.skeletons[skeleton].intersection(
+            # get the intersection hashes
+            hashes = self.skeletons[skeleton].intersection(
                 self.alternations[alternation])
         elif skeleton:
-            indexes = self.skeletons[skeleton]
+            hashes = self.skeletons[skeleton]
         elif alternation:
-            indexes = self.alternations[alternation]
+            hashes = self.alternations[alternation]
         else:
             return
 
-        # get all the items at those indices
-        for index in indexes:
-            yield self.__pairs[index]
+        # get all the items with those hashes
+        for item_hash in hashes:
+            yield self.__pairs[item_hash]
 
     def get_one(self, skeleton=None, alternation=None) -> WordPair:
-        indexes = self.get_pairs(skeleton=skeleton, alternation=alternation)
-        return indexes.__next__()
+        pairs = self.get_pairs(skeleton=skeleton, alternation=alternation)
+        return pairs.__next__()
 
     def itersorted(self, key='alternation_freq', reverse=True):
 
@@ -100,38 +95,22 @@ class AlternationPairs:
         else:
             return
 
-    def __remove(self, item: WordPair):
+    def remove(self, item: WordPair):
         """
         This method should not be used directly.
         """
-        pair_index = self.__pairs.index(item)
-        self.__pairs[pair_index] = None
+        item_hash = hash(item)
+        del self.__pairs[item_hash]
+
+        self.alternations[item.alternation].remove(item_hash)
+        self.skeletons[item.skeleton].remove(item_hash)
+
         self._alternation_counter[item.alternation] -= 1
         self._skeleton_counter[item.skeleton] -= 1
-        self.__hashes.remove(hash(item))
-
-    def __rebuild_indexes(self):
-        self.__pairs = [pair for pair in self.__pairs if pair]
-        self.skeletons = defaultdict(set)
-        self.alternations = defaultdict(set)
-        self._skeleton_counter = Counter()
-        self._alternation_counter = Counter()
-
-        for n, pair in enumerate(self.__pairs):
-            skeleton, alternation = pair.skeleton, pair.alternation
-            self.skeletons[skeleton].add(n)
-            self._skeleton_counter[skeleton] += 1
-
-            self.alternations[alternation].add(n)
-            self._alternation_counter[alternation] += 1
-
 
 
     def filter_pairs(self, min_alternation_frequency, min_skeleton_frequency):
         keep_going = True
-
-        # check if the structure needs to be rebuilt (i.e. if pairs were removed)
-        needs_rebuild = False
 
         # keep filtering while there are pairs to remove
         while keep_going:
@@ -139,31 +118,21 @@ class AlternationPairs:
             to_remove = []
 
             # remove all skeletons that don't occur in many pairs
-            for skeleton, count in self._skeleton_counter.items():
-                if count < min_skeleton_frequency:
-                    to_remove.append(self.get_pairs(skeleton=skeleton))
 
             for alternation, count in self._alternation_counter.items():
                 if count < min_alternation_frequency:
                     to_remove.append(self.get_pairs(alternation=alternation))
 
-            # flatten the pairs to remove
-            to_remove = (item for item in chain.from_iterable(to_remove)
-                         if item)
+            for skeleton, count in self._skeleton_counter.items():
+                if count < min_skeleton_frequency:
+                    to_remove.append(self.get_pairs(skeleton=skeleton))
 
+            to_remove = set(chain.from_iterable(to_remove))
             n = 0
             for n, pair in enumerate(to_remove, start=1):
-                self.__remove(pair)
-
+                self.remove(pair)
             if n:
                 keep_going = True
-                needs_rebuild = True
-
-        if needs_rebuild:
-            self.__rebuild_indexes()
-
-
-
 
 def are_similar(word1: str, word2: str, max_diff_length=2,
                 allowed_op_kinds=None) -> (bool, tuple):
@@ -291,12 +260,18 @@ def filter_pairs(diff_pairs: AlternationPairs,
 def combine_patterns(pairs: AlternationPairs) -> dict:
     combined_patterns = {}
     for skeleton, _ in pairs._skeleton_counter.most_common():
-        skeleton_pairs = [(pair.word1, pair.word2) for pair in
-                          pairs.get_pairs(skeleton=skeleton)]
-        if skeleton_pairs:
-            # put them all together
-            combined_patterns[skeleton] = set(chain.from_iterable(skeleton_pairs))
+        skeleton_pairs = pairs.get_pairs(skeleton=skeleton)
+        word_pairs = []
+        alternations = []
 
+        for pair in skeleton_pairs:
+            word_pairs += [pair.word1, pair.word2]
+            alternations.append('/'.join(pair.alternation))
+
+        if word_pairs:
+            # put them all together
+            skeleton = '_'.join(skeleton)
+            combined_patterns[skeleton] = (set(alternations), set(word_pairs))
 
     return combined_patterns
 
@@ -372,7 +347,7 @@ def print_patterns(patterns: AlternationPairs,
                   file=new_file)
 
         print('*****\ncombined skeletons:', file=new_file)
-        pprint(combined_skeletons, stream=new_file)
+        pprint(combined_skeletons, stream=new_file, width=70)
 
 if __name__ == '__main__':
     arg_parser = ArgumentParser()
