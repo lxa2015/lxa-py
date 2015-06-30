@@ -43,7 +43,7 @@ def makeArgParser():
     parser.add_argument("--maxaffix", help="Maximum affix length",
                         type=int, default=3)
     parser.add_argument("--minsig", help="Minimum number of signature use",
-                        type=int, default=50)
+                        type=int, default=5)
     parser.add_argument("--maxwordtokens", help="maximum number of word tokens",
                         type=int, default=0)
     return parser
