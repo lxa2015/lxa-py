@@ -1,11 +1,10 @@
 #!usr/bin/env python3
 
-import sys
 from collections import Counter
 import argparse
-import json
 from pathlib import Path
-from distutils.util import strtobool
+
+from lxa5lib import get_language_corpus_datafolder
 
 #------------------------------------------------------------------------------#
 #
@@ -31,33 +30,6 @@ def makeArgParser():
     parser.add_argument("--maxwordtokens", help="maximum number of word tokens",
                         type=int, default=0)
     return parser
-
-
-def load_config(language, corpus, datafolder, filename='config.json',
-                writenew=True):
-    config_path = Path(filename)
-    if not language or not corpus or not datafolder:
-        try:
-            # see if it's there
-            with config_path.open() as config_file:
-                config = json.load(config_file)
-            language = config['language']
-            corpus = config['corpus']
-            datafolder = config['datafolder']
-            writenew = False
-        except (FileNotFoundError, KeyError):
-            language = input('enter language name: ')
-            corpus = input('enter corpus filename: ')
-            datafolder = input('enter data path: ')
-
-    if writenew:
-        config = {'language': language,
-                  'corpus': corpus,
-                  'datafolder': datafolder}
-        with config_path.open('w') as config_file:
-            json.dump(config, config_file)
-
-    return language, corpus, datafolder
 
 
 def main(language, corpus, datafolder, maxwordtokens=0):
@@ -171,29 +143,12 @@ def main(language, corpus, datafolder, maxwordtokens=0):
 
 if __name__ == "__main__":
 
-    # TODO: we may need to move all config-related code to a separate
-    #   module, as there will be other parameters to be brought into the picture
-    #   and we'd like to make things easier to manage for the overal architecture
-    #   as well as for both GUI and non-GUI usage 
-
     args = makeArgParser().parse_args()
 
     maxwordtokens = args.maxwordtokens
 
-    language, corpus, datafolder = load_config(args.language,
-                                               args.corpus, args.datafolder)
-
-    print("language: {}".format(language))
-    print("corpus file: {}".format(corpus))
-    print("datafolder: {}".format(datafolder))
-    proceed = input("proceed? [Y/n] ")
-    if proceed and not strtobool(proceed):
-        sys.exit() # if "proceed" is empty, then false (= good to go)
-
-    testPath = Path(datafolder, language, corpus)
-    if not testPath.exists():
-        sys.exit('Corpus file "{}" does not exist. '
-                 'Check file paths and names.'.format(str(testPath) ))
+    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
+                                                   args.corpus, args.datafolder)
 
     main(language, corpus, datafolder, maxwordtokens)
 
