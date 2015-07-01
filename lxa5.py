@@ -7,17 +7,17 @@
 #------------------------------------------------------------------------------#
 
 import argparse
-from distutils.util import strtobool
-import json
 import time
 from pathlib import Path
-import sys
 
 from lxa5_module import (read_word_freq_file, MakeBiSignatures,
                          MakeStemToWords, OutputLargeDict,
                          OutputStemFile, MakeSigToStems,
                          MakeStemToSig, MakeWordToSigs,
                          MakeAffixToSigs, OutputAffixFile)
+
+from lxa5lib import (get_language_corpus_datafolder, json_pdump,
+                     changeFilenameSuffix)
 
 #------------------------------------------------------------------------------#
 #        user modified variables
@@ -47,33 +47,6 @@ def makeArgParser():
     parser.add_argument("--maxwordtokens", help="maximum number of word tokens",
                         type=int, default=0)
     return parser
-
-
-def load_config(language, corpus, datafolder, filename='config.json',
-                writenew=True):
-    config_path = Path(filename)
-    if not language or not corpus or not datafolder:
-        try:
-            # see if it's there
-            with config_path.open() as config_file:
-                config = json.load(config_file)
-            language = config['language']
-            corpus = config['corpus']
-            datafolder = config['datafolder']
-            writenew = False
-        except (FileNotFoundError, KeyError):
-            language = input('enter language name: ')
-            corpus = input('enter corpus filename: ')
-            datafolder = input('enter data path: ')
-
-    if writenew:
-        config = {'language': language,
-                  'corpus': corpus,
-                  'datafolder': datafolder}
-        with config_path.open('w') as config_file:
-            json.dump(config, config_file)
-
-    return language, corpus, datafolder
 
 
 def create_wordlist(language, filename, datafolder,
@@ -201,6 +174,11 @@ def main(language, corpus, datafolder,
 
     SigToStems_outfilename = Path(outfolder, corpusName + "_SigToStems.txt")
     OutputLargeDict(SigToStems_outfilename, SigToStems)
+
+    json_pdump(SigToStems,
+               changeFilenameSuffix(SigToStems_outfilename, ".json").open("w"),
+               sort_function=lambda x : len(x[1]), reverse=True)
+
     print('===> output file generated:', SigToStems_outfilename, flush=True)
 
     # -------------------------------------------------------------------------#
@@ -209,6 +187,11 @@ def main(language, corpus, datafolder,
 
     WordToSigs_outfilename = Path(outfolder, corpusName + "_WordToSigs.txt")
     OutputLargeDict(WordToSigs_outfilename, WordToSigs)
+
+    json_pdump(WordToSigs,
+               changeFilenameSuffix(WordToSigs_outfilename, ".json").open("w"),
+               sort_function=lambda x : len(x[1]), reverse=True)
+
     print('===> output file generated:', WordToSigs_outfilename, flush=True)
 
     # -------------------------------------------------------------------------#
@@ -543,21 +526,8 @@ if __name__ == "__main__":
     MinimumNumberofSigUses = args.minsig
     maxwordtokens = args.maxwordtokens
 
-    language, corpus, datafolder = load_config(args.language,
-                                               args.corpus, args.datafolder)
-
-    print("language: {}".format(language))
-    print("corpus file: {}".format(corpus))
-    print("datafolder: {}".format(datafolder))
-    proceed = input("proceed? [Y/n] ")
-    if proceed and not strtobool(proceed):
-        sys.exit() # if "proceed" is empty, then false (= good to go)
-
-    testPath = Path(datafolder, language, corpus)
-    if not testPath.exists():
-        sys.exit('Corpus file "{}" does not exist. Check file paths and names.'.format(
-            str(testPath)
-        ))
+    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
+                                                   args.corpus, args.datafolder)
 
     main(language, corpus, datafolder,
          MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,

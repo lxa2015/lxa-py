@@ -6,13 +6,12 @@
 # John Goldsmith 2015
 # Jackson Lee 2015
 
-import sys
 import argparse
-import json
 from pathlib import Path
-from distutils.util import strtobool
 
 import ngrams
+from lxa5lib import (get_language_corpus_datafolder, json_pdump,
+                     changeFilenameSuffix)
 
 
 def makeArgParser():
@@ -34,33 +33,6 @@ def makeArgParser():
                                            "successors/predecessors for output",
                         type=int, default=3)
     return parser
-
-
-def load_config(language, corpus, datafolder, filename='config.json',
-                writenew=True):
-    config_path = Path(filename)
-    if not language or not corpus or not datafolder:
-        try:
-            # see if it's there
-            with config_path.open() as config_file:
-                config = json.load(config_file)
-            language = config['language']
-            corpus = config['corpus']
-            datafolder = config['datafolder']
-            writenew = False
-        except (FileNotFoundError, KeyError):
-            language = input('enter language name: ')
-            corpus = input('enter corpus filename: ')
-            datafolder = input('enter data path: ')
-
-    if writenew:
-        config = {'language': language,
-                  'corpus': corpus,
-                  'datafolder': datafolder}
-        with config_path.open('w') as config_file:
-            json.dump(config, config_file)
-
-    return language, corpus, datafolder
 
 
 def findBreaksInWords(wordlist, MinimumStemLength):
@@ -232,6 +204,8 @@ def main(language, corpus, datafolder,
     #        read wordlist
     #--------------------------------------------------------------------##
 
+    print("reading wordlist...", flush=True)
+
     wordlist = list()
     with infilename.open() as f:
 
@@ -250,6 +224,8 @@ def main(language, corpus, datafolder,
     #        Find breaks in words (left-to-right and right-to-left)
     #--------------------------------------------------------------------##
 
+    print("finding breaks in words...", flush=True)
+
     breaks_LtoR = findBreaksInWords(wordlist, MinimumStemLength)
     breaks_RtoL = findBreaksInWords(reversedwordlist, MinimumStemLength)
 
@@ -264,6 +240,8 @@ def main(language, corpus, datafolder,
     #        Compute successors and predecessors
     #--------------------------------------------------------------------------# 
 
+    print("computing successors and predecessors...", flush=True)
+
     successors = GetSuccessors(wordlist, WordsBrokenLtoR)
     OutputSuccessors(outfile_SF_name, successors, SF_threshold)
 
@@ -273,6 +251,8 @@ def main(language, corpus, datafolder,
     #--------------------------------------------------------------------------#
     #        Print tries (left-to-right, right-to-left)
     #--------------------------------------------------------------------------# 
+
+    print("printing tries...", flush=True)
 
     OutputTrie(outfile_trieLtoR_name, WordsBrokenLtoR)
     OutputTrie(outfile_trieRtoL_name, WordsBrokenRtoL, reverse=True)
@@ -286,20 +266,8 @@ if __name__ == "__main__":
     MinimumAffixLength = args.minaffix
     SF_threshold = args.minsize
 
-    language, corpus, datafolder = load_config(args.language,
-                                               args.corpus, args.datafolder)
-
-    print("language: {}".format(language))
-    print("corpus file: {}".format(corpus))
-    print("datafolder: {}".format(datafolder))
-    proceed = input("proceed? [Y/n] ")
-    if proceed and not strtobool(proceed):
-        sys.exit() # if "proceed" is empty, then false (= good to go)
-
-    testPath = Path(datafolder, language, corpus)
-    if not testPath.exists():
-        sys.exit('Corpus file "{}" does not exist. '
-                 'Check file paths and names.'.format(str(testPath) ))
+    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
+                                                   args.corpus, args.datafolder)
 
     main(language, corpus, datafolder,
          MinimumStemLength, MinimumAffixLength, SF_threshold)

@@ -11,11 +11,8 @@
 
 
 import argparse
-import os
 from pathlib import Path
 import pickle
-import json
-from distutils.util import strtobool
 
 from manifold_module import (GetMyWords, GetContextArray,
                              Normalize, compute_incidence_graph,
@@ -23,6 +20,8 @@ from manifold_module import (GetMyWords, GetContextArray,
                              compute_words_distance, compute_closest_neighbors)
 import ngrams
 
+from lxa5lib import (get_language_corpus_datafolder, json_pdump,
+                     changeFilenameSuffix)
 
 def makeArgParser():
     parser = argparse.ArgumentParser(
@@ -42,33 +41,6 @@ def makeArgParser():
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
     return parser
-
-
-def load_config(language, corpus, datafolder, filename='config.json',
-                writenew=True):
-    config_path = Path(filename)
-    if not language or not corpus or not datafolder:
-        try:
-            # see if it's there
-            with config_path.open() as config_file:
-                config = json.load(config_file)
-            language = config['language']
-            corpus = config['corpus']
-            datafolder = config['datafolder']
-            writenew = False
-        except (FileNotFoundError, KeyError):
-            language = input('enter language name: ')
-            corpus = input('enter corpus filename: ')
-            datafolder = input('enter data path: ')
-
-    if writenew:
-        config = {'language': language,
-                  'corpus': corpus,
-                  'datafolder': datafolder}
-        with config_path.open('w') as config_file:
-            json.dump(config, config_file)
-
-    return language, corpus, datafolder
 
 
 def main(language, corpus, datafolder,
@@ -186,20 +158,8 @@ if __name__ == "__main__":
     nNeighbors = args.nNeighbors
     nEigenvectors = args.nEigenvectors
 
-    language, corpus, datafolder = load_config(args.language,
-                                               args.corpus, args.datafolder)
-
-    print("language: {}".format(language))
-    print("corpus file: {}".format(corpus))
-    print("datafolder: {}".format(datafolder))
-    proceed = input("proceed? [Y/n] ")
-    if proceed and not strtobool(proceed):
-        sys.exit() # if "proceed" is empty, then false (= good to go)
-
-    testPath = Path(datafolder, language, corpus)
-    if not testPath.exists():
-        sys.exit('Corpus file "{}" does not exist. '
-                 'Check file paths and names.'.format(str(testPath) ))
+    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
+                                                   args.corpus, args.datafolder)
 
     main(language, corpus, datafolder,
          maxwordtypes, nNeighbors, nEigenvectors)
