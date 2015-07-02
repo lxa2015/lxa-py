@@ -6,7 +6,7 @@ from pathlib import Path
 
 import ngrams
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix)
+                     changeFilenameSuffix, stdout_list)
 
 #------------------------------------------------------------------------------#
 #
@@ -135,17 +135,23 @@ def main(language, corpus, datafolder):
     # generate .json output files
     #--------------------------------------------------------------------------#
 
-    with changeFilenameSuffix(outfilenamePhones, '.json').open('w') as f:
+    outfilenamePhones_json = changeFilenameSuffix(outfilenamePhones, '.json')
+    with outfilenamePhones_json.open('w') as f:
         json_pdump(phoneDict, f, sort_function=lambda x:x[1], reverse=True)
 
-    with changeFilenameSuffix(outfilenameBiphones, '.json').open('w') as f:
+    outfilenameBiphones_json = changeFilenameSuffix(outfilenameBiphones, '.json')
+    with outfilenameBiphones_json.open('w') as f:
         json_pdump(biphoneDict, f, sort_function=lambda x:x[1], reverse=True)
 
-    with changeFilenameSuffix(outfilenameTriphones, '.json').open('w') as f:
+    outfilenameTriphones_json = changeFilenameSuffix(outfilenameTriphones, '.json')
+    with outfilenameTriphones_json.open('w') as f:
         json_pdump(triphoneDict, f, sort_function=lambda x:x[1], reverse=True)
 
     print('phone, biphone and triphone files ready')
 
+    stdout_list("Output files:",
+        outfilenamePhones, outfilenameBiphones, outfilenameTriphones,
+        outfilenamePhones_json, outfilenameBiphones_json, outfilenameTriphones_json)
 
 if __name__ == "__main__":
 

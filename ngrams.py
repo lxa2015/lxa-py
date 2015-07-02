@@ -4,7 +4,7 @@ from collections import Counter
 import argparse
 from pathlib import Path
 
-from lxa5lib import get_language_corpus_datafolder
+from lxa5lib import (get_language_corpus_datafolder, stdout_list)
 
 #------------------------------------------------------------------------------#
 #
@@ -27,7 +27,9 @@ def makeArgParser():
                         type=str, default=None)
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
-    parser.add_argument("--maxwordtokens", help="maximum number of word tokens",
+    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
+                        " if this is zero, then the program counts "
+                        "all word tokens in the corpus",
                         type=int, default=0)
     return parser
 
@@ -138,7 +140,11 @@ def main(language, corpus, datafolder, maxwordtokens=0):
         for (trigram, freq) in trigramsSorted:
             print(trigram + sep + str(freq), file=f)
 
-    print('wordlist, bigram and trigram files ready')
+    print('wordlist, bigram and trigram files ready:')
+
+    stdout_list("Output files:", outfilenameWords,
+                                 outfilenameBigrams,
+                                 outfilenameTrigrams)
 
 
 if __name__ == "__main__":

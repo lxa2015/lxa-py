@@ -11,7 +11,7 @@ from pathlib import Path
 
 import ngrams
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix)
+                     changeFilenameSuffix, stdout_list)
 
 
 def makeArgParser():
@@ -25,7 +25,10 @@ def makeArgParser():
                         type=str, default=None)
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
-    parser.add_argument("--minstem", help="Minimum stem length",
+    parser.add_argument("--minstem", help="Minimum stem length; "
+                        "usually from 2 to 5, where a smaller number means "
+                        "you can find shorter stems although the program "
+                        "may run a lot slower",
                         type=int, default=4)
     parser.add_argument("--minaffix", help="Minimum affix length",
                         type=int, default=1)
@@ -256,6 +259,9 @@ def main(language, corpus, datafolder,
 
     OutputTrie(outfile_trieLtoR_name, WordsBrokenLtoR)
     OutputTrie(outfile_trieRtoL_name, WordsBrokenRtoL, reverse=True)
+
+    stdout_list("Output files:", outfile_SF_name, outfile_PF_name,
+                                 outfile_trieLtoR_name, outfile_trieRtoL_name)
 
 
 if __name__ == "__main__":

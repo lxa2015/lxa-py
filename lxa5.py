@@ -38,13 +38,23 @@ def makeArgParser():
                         type=str, default=None)
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
-    parser.add_argument("--minstem", help="Minimum stem length",
+    parser.add_argument("--minstem", help="Minimum stem length; "
+                        "usually from 2 to 5, where a smaller number means "
+                        "you can find shorter stems although the program "
+                        "may run a lot slower",
                         type=int, default=4)
-    parser.add_argument("--maxaffix", help="Maximum affix length",
+    parser.add_argument("--maxaffix", help="Maximum affix length; "
+                        "usually from 1 to 5, where a larger number means "
+                        "you can find longer affixes",
                         type=int, default=3)
-    parser.add_argument("--minsig", help="Minimum number of signature use",
+    parser.add_argument("--minsig", help="Minimum number of signature use; "
+                        "a small number like 5 is pretty much the smallest "
+                        "to use in order to filter spurious signatures; may "
+                        "try larger numbers like 10 or 20 and so forth",
                         type=int, default=5)
-    parser.add_argument("--maxwordtokens", help="maximum number of word tokens",
+    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
+                        " if this is zero, then the program counts "
+                        "all word tokens in the corpus",
                         type=int, default=0)
     return parser
 
@@ -175,11 +185,13 @@ def main(language, corpus, datafolder,
     SigToStems_outfilename = Path(outfolder, corpusName + "_SigToStems.txt")
     OutputLargeDict(SigToStems_outfilename, SigToStems)
 
-    json_pdump(SigToStems,
-               changeFilenameSuffix(SigToStems_outfilename, ".json").open("w"),
+    SigToStems_outfilename_json = changeFilenameSuffix(SigToStems_outfilename,
+                                                       ".json")
+    json_pdump(SigToStems, SigToStems_outfilename_json.open("w"),
                sort_function=lambda x : len(x[1]), reverse=True)
 
     print('===> output file generated:', SigToStems_outfilename, flush=True)
+    print('===> output file generated:', SigToStems_outfilename_json, flush=True)
 
     # -------------------------------------------------------------------------#
     #   output WordToSigs
@@ -188,11 +200,13 @@ def main(language, corpus, datafolder,
     WordToSigs_outfilename = Path(outfolder, corpusName + "_WordToSigs.txt")
     OutputLargeDict(WordToSigs_outfilename, WordToSigs)
 
-    json_pdump(WordToSigs,
-               changeFilenameSuffix(WordToSigs_outfilename, ".json").open("w"),
+    WordToSigs_outfilename_json = changeFilenameSuffix(WordToSigs_outfilename,
+                                                       ".json")
+    json_pdump(WordToSigs, WordToSigs_outfilename_json.open("w"),
                sort_function=lambda x : len(x[1]), reverse=True)
 
     print('===> output file generated:', WordToSigs_outfilename, flush=True)
+    print('===> output file generated:', WordToSigs_outfilename_json, flush=True)
 
     # -------------------------------------------------------------------------#
     #   output the most freq word types not in any induced paradigms {the, of..}

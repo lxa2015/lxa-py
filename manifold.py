@@ -24,7 +24,7 @@ from manifold_module import (GetMyWords, GetContextArray,
 import ngrams
 
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix)
+                     changeFilenameSuffix, stdout_list)
 
 def makeArgParser():
     parser = argparse.ArgumentParser(
@@ -161,8 +161,9 @@ def main(language, corpus, datafolder,
     neighbor_graph = GetMyGraph(outfilenameNeighbors)
     nx.write_gexf(neighbor_graph, str(outfilenameNeighborGraph))
 
-    print("Output to files:\n{}\n{}".format(
-          str(outfilenameNeighbors), str(outfilenameNeighborGraph)), flush=True)
+    stdout_list("Output files:",
+                outfilenameNeighbors, outfilenameNeighborGraph)
+
 
 if __name__ == "__main__":
 

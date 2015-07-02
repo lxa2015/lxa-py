@@ -90,3 +90,9 @@ def changeFilenameSuffix(filename: Path, newsuffix):
     return Path(filename.parent, filename.stem + newsuffix)
 
 
+def stdout_list(header, *args):
+    print(header, flush=True)
+    for x in args:
+        print(x, flush=True)
+
+
