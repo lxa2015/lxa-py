@@ -14,10 +14,13 @@ import argparse
 from pathlib import Path
 import pickle
 
+import networkx as nx
+
 from manifold_module import (GetMyWords, GetContextArray,
                              Normalize, compute_incidence_graph,
                              compute_laplacian, GetEigenvectors,
-                             compute_words_distance, compute_closest_neighbors)
+                             compute_words_distance, compute_closest_neighbors,
+                             GetMyGraph)
 import ngrams
 
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
@@ -34,6 +37,8 @@ def makeArgParser():
                         type=int, default=9)
     parser.add_argument("--nEigenvectors", help="Number of eigenvectors",
                         type=int, default=11)
+    parser.add_argument("--pickle", help="output pickled files?",
+                        type=bool, default=False)
     parser.add_argument("--language", help="Language name",
                         type=str, default=None)
     parser.add_argument("--corpus", help="Corpus file to use",
@@ -44,7 +49,7 @@ def makeArgParser():
 
 
 def main(language, corpus, datafolder,
-         maxwordtypes, nNeighbors, nEigenvectors):
+         maxwordtypes, nNeighbors, nEigenvectors, _pickle):
 
     corpusStem = Path(corpus).stem
     corpusName = corpusStem + '_' + str(maxwordtypes) + '_' + str(nNeighbors)
@@ -85,44 +90,50 @@ def main(language, corpus, datafolder,
     outfilenameNeighbors = Path(outfolder, corpusName + \
                                 "_nearest_neighbors.txt")
 
+    outfilenameNeighborGraph = Path(outfolder, corpusName + \
+                                    "_nearest_neighbors.gexf")
+
     outWordToContexts_pkl_fname = Path(outcontextsfolder, corpusName + \
                                        "_WordToContexts.pkl")
 
     outContextToWords_pkl_fname = Path(outcontextsfolder, corpusName + \
                                        "_ContextToWords.pkl")
 
-    print("Reading bigrams/trigrams and computing context array ", flush=True)
+    print("Reading bigrams/trigrams and computing context array...", flush=True)
+
     context_array, WordToContexts, ContextToWords = GetContextArray(corpus, 
                                                        maxwordtypes,
                                                        analyzedwordlist,
                                                        infileBigramsname,
-                                                       infileTrigramsname)
+                                                       infileTrigramsname,
+                                                       _pickle)
 
-    with outWordToContexts_pkl_fname.open('wb') as f:
-        pickle.dump(WordToContexts, f)
-    print('WordToContexts ready and pickled', flush=True)
+    if _pickle:
+        with outWordToContexts_pkl_fname.open('wb') as f:
+            pickle.dump(WordToContexts, f)
+        print('WordToContexts ready and pickled', flush=True)
 
-    with outContextToWords_pkl_fname.open('wb') as f:
-        pickle.dump(ContextToWords, f)
-    print('ContextToWords ready and pickled', flush=True)
+        with outContextToWords_pkl_fname.open('wb') as f:
+            pickle.dump(ContextToWords, f)
+        print('ContextToWords ready and pickled', flush=True)
 
-    print("Computing shared contexts", flush=True)
+    print("Computing shared contexts...", flush=True)
     CountOfSharedContexts = context_array.dot(context_array.T).todense()
     del context_array
 
-    print("Computing diameter", flush=True)
+    print("Computing diameter...", flush=True)
     Diameter = Normalize(maxwordtypes, CountOfSharedContexts)
 
-    print("Computing incidence graph", flush=True)
+    print("Computing incidence graph...", flush=True)
     incidencegraph = compute_incidence_graph(maxwordtypes, Diameter,
                                              CountOfSharedContexts)
     
-    print("Computing mylaplacian", flush=True)
+    print("Computing mylaplacian...", flush=True)
     mylaplacian = compute_laplacian(maxwordtypes, Diameter, incidencegraph)
     del Diameter
     del incidencegraph
 
-    print("Compute eigenvectors...", flush=True)
+    print("Computing eigenvectors...", flush=True)
     myeigenvalues, myeigenvectors = GetEigenvectors(mylaplacian)
     del mylaplacian
     del myeigenvalues
@@ -137,8 +148,6 @@ def main(language, corpus, datafolder,
     closestNeighbors = compute_closest_neighbors(analyzedwordlist,
                                                  wordsdistance, nNeighbors)
 
-    print("Output to files", flush=True)
-
     with outfilenameNeighbors.open('w') as f:
         print("# language: {}\n# corpus: {}\n"
               "# Number of word types analyzed: {}\n"
@@ -149,6 +158,11 @@ def main(language, corpus, datafolder,
             print(' '.join([analyzedwordlist[idx]
                             for idx in closestNeighbors[wordno]]), file=f)
 
+    neighbor_graph = GetMyGraph(outfilenameNeighbors)
+    nx.write_gexf(neighbor_graph, str(outfilenameNeighborGraph))
+
+    print("Output to files:\n{}\n{}".format(
+          str(outfilenameNeighbors), str(outfilenameNeighborGraph)), flush=True)
 
 if __name__ == "__main__":
 
@@ -157,10 +171,11 @@ if __name__ == "__main__":
     maxwordtypes = args.maxwordtypes
     nNeighbors = args.nNeighbors
     nEigenvectors = args.nEigenvectors
+    _pickle = args.pickle
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                                    args.corpus, args.datafolder)
 
     main(language, corpus, datafolder,
-         maxwordtypes, nNeighbors, nEigenvectors)
+         maxwordtypes, nNeighbors, nEigenvectors, _pickle)
 

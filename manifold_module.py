@@ -16,6 +16,7 @@ import numpy as np
 import scipy.spatial.distance as sd
 import scipy.sparse as sp
 import scipy.sparse.linalg as sl
+import networkx as nx
 
 
 def Normalize(NumberOfWordsForAnalysis, CountOfSharedContexts):
@@ -57,7 +58,40 @@ def GetMyWords(infileWordsname, corpus, minWordFreq=1):
                                             key=lambda x:x[1], reverse=True))
 
 
-def GetContextArray(corpus, nwords, wordlist, infileBigramsname, infileTrigramsname):
+def GetMyGraph(infilename: Path, useWeights=None):
+    G = nx.Graph()
+
+    with infilename.open() as infile:
+
+        for line in infile:
+
+            if (not line) or line.startswith('#'):
+                continue
+
+            lineSplit = line.split()
+
+            if len(lineSplit) < 2:
+                continue
+
+            headword, *words = lineSplit
+
+            nWords = len(words)
+
+            if useWeights == 'y':
+                for (idx, word) in enumerate(words):
+                    _weight = nWords - idx
+                    G.add_edge(headword, word, weight=_weight)
+            else:
+                for (idx, word) in enumerate(words):
+                    _weight = 1
+                    G.add_edge(headword, word, weight=_weight)
+
+    return G
+
+
+def GetContextArray(corpus, nwords, wordlist,
+                    infileBigramsname, infileTrigramsname,
+                    _pickle):
 
     WordToContexts = dict()
     ContextToWords = dict()
@@ -109,14 +143,15 @@ def GetContextArray(corpus, nwords, wordlist, infileBigramsname, infileTrigramsn
             if worddict.get(word3) is not None:
                 addword(word3, word1 + word2 + "__")
 
-            for (word, context) in zip(_wordList, _contextList):
-                if word not in WordToContexts:
-                    WordToContexts[word] = Counter()
-                WordToContexts[word].update([context])
+            if _pickle:
+                for (word, context) in zip(_wordList, _contextList):
+                    if word not in WordToContexts:
+                        WordToContexts[word] = Counter()
+                    WordToContexts[word].update([context])
 
-                if context not in ContextToWords:
-                    ContextToWords[context] = Counter()
-                ContextToWords[context].update([word])
+                    if context not in ContextToWords:
+                        ContextToWords[context] = Counter()
+                    ContextToWords[context].update([word])
 
     with infileBigramsname.open() as bigramfile:
         for line in bigramfile:
@@ -138,14 +173,15 @@ def GetContextArray(corpus, nwords, wordlist, infileBigramsname, infileTrigramsn
             if worddict.get(c[1]) is not None:
                 addword(c[1], c[0] + "__")
 
-            for (word, context) in zip(_wordList, _contextList):
-                if word not in WordToContexts:
-                    WordToContexts[word] = Counter()
-                WordToContexts[word].update([context])
+            if _pickle:
+                for (word, context) in zip(_wordList, _contextList):
+                    if word not in WordToContexts:
+                        WordToContexts[word] = Counter()
+                    WordToContexts[word].update([context])
 
-                if context not in ContextToWords:
-                    ContextToWords[context] = Counter()
-                ContextToWords[context].update([word])
+                    if context not in ContextToWords:
+                        ContextToWords[context] = Counter()
+                    ContextToWords[context].update([word])
 
 
     return ( sp.csr_matrix((vals,(rows,cols)), shape=(nwords, ns.ncontexts) ),
