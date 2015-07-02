@@ -1,7 +1,7 @@
-Linguistica 5.0
+Linguistica 5.1
 ===============
 
-This is the Python version of Linguistica, version 5.0, currently under active development. Everything runs under Python 3.4+. The core components are the following (more are being added):
+This is the Python version of Linguistica, version 5.1, currently under active development. Everything runs under Python 3.4+. The core components are the following (more are being added):
 
 - lxa5.py
 - ngrams.py
@@ -9,7 +9,9 @@ This is the Python version of Linguistica, version 5.0, currently under active d
 - tries.py
 - phon.py
 
-Run this for what parameters can be changed:
+Note: For `manifold.py`, the [networkx](https://networkx.github.io/) package is required for outputting graph objects. To install networkx, please be sure to do so for your Python 3 distribution, not Python 2.
+
+For any of the core components, run this for what parameters can be changed:
 
     $ python3 <file> -h
 
