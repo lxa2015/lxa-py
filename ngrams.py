@@ -38,9 +38,13 @@ def main(language, corpus, datafolder, maxwordtokens=0):
 
     infilename = Path(datafolder, language, corpus)
     outfolder = Path(datafolder, language, "ngrams")
+    outfolderDx1 = Path(datafolder, language, "dx1")
 
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
+
+    if not outfolderDx1.exists():
+        outfolderDx1.mkdir(parents=True)
 
     if maxwordtokens:
         corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
@@ -50,6 +54,7 @@ def main(language, corpus, datafolder, maxwordtokens=0):
     outfilenameWords = Path(outfolder, corpusName + "_words.txt")
     outfilenameBigrams = Path(outfolder, corpusName + "_bigrams.txt")
     outfilenameTrigrams = Path(outfolder, corpusName + "_trigrams.txt")
+    outfilenameDx1 = Path(outfolderDx1, corpusName + ".dx1")
 
     wordDict = Counter()
     trigramDict = Counter()
@@ -140,11 +145,17 @@ def main(language, corpus, datafolder, maxwordtokens=0):
         for (trigram, freq) in trigramsSorted:
             print(trigram + sep + str(freq), file=f)
 
-    print('wordlist, bigram and trigram files ready:')
+    with outfilenameDx1.open('w') as f:
+        for (word, freq) in wordsSorted:
+            print(word, freq, ' '.join(word), file=f)
+
+    print('wordlist, bigram and trigram files ready')
+    print('dx1 file ready')
 
     stdout_list("Output files:", outfilenameWords,
                                  outfilenameBigrams,
-                                 outfilenameTrigrams)
+                                 outfilenameTrigrams,
+                                 outfilenameDx1)
 
 
 if __name__ == "__main__":
