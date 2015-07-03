@@ -9,7 +9,7 @@ This is the Python version of Linguistica, version 5.1, currently under active d
 - tries.py
 - phon.py
 
-Note: For `manifold.py`, the [networkx](https://networkx.github.io/) package is required for outputting graph objects. To install networkx, please be sure to do so for your Python 3 distribution, not Python 2.
+Note: For `manifold.py`, the following packages are required: [networkx](https://networkx.github.io/), [numpy](http://www.numpy.org/), and [scipy](http://www.scipy.org/). To install these, please be sure to do so for your Python 3 distribution, not Python 2. (If you are using Ubuntu, run this: `sudo apt-get install python3-networkx python3-numpy python3-scipy`)
 
 For any of the core components, run this for what parameters can be changed:
 
