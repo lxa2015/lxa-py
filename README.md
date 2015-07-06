@@ -3,11 +3,12 @@ Linguistica 5.1
 
 This is the Python version of Linguistica, version 5.1, currently under active development. Everything runs under Python 3.4+. The core components are the following (more are being added):
 
-- lxa5.py
-- ngrams.py
-- manifold.py
-- tries.py
-- phon.py
+- `lxa5.py`
+- `ngrams.py`
+- `manifold.py`
+- `tries.py`
+- `phon.py`
+- `wordbreaker.py` (code refactoring/optimization in progress)
 
 Note: For `manifold.py`, the following packages are required: [networkx](https://networkx.github.io/), [numpy](http://www.numpy.org/), and [scipy](http://www.scipy.org/). To install these, please be sure to do so for your Python 3 distribution, not Python 2. (If you are using Ubuntu, run this: `sudo apt-get install python3-networkx python3-numpy python3-scipy`)
 
