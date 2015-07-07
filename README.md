@@ -46,6 +46,7 @@ Running the core components
 ---------------------------
 
 For any of the core components, run this for what parameters can be changed (assuming you are at the directory `lxa-py/`):
+
     $ python3 <file> -h
 
 Currently, the following three major parameters are especially important:
