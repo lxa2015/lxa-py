@@ -54,9 +54,9 @@ class LexiconEntry:
             self.m_CountRegister.append((current_iteration, self.m_Count))
         self.m_Count = 0
     def Display(self, outfile):
-        print >>outfile, "%-20s" % self.m_Key
+        print("%-20s" % self.m_Key, file=outfile)
         for iteration_number, count in self.m_CountRegister:
-            print >>outfile, "%6i %10s" % (iteration_number, "{:,}".format(count))
+            print("%6i %10s" % (iteration_number, "{:,}".format(count)), file=outfile)
 # ---------------------------------------------------------#
 class Lexicon:
     def __init__(self):
@@ -87,7 +87,9 @@ class Lexicon:
             self.m_SizeOfLongestEntry = len(key)
     # ---------------------------------------------------------#    
     # Found bug here July 5 2015: important, don't let it remove a singleton letter! John
+    # don't del key-value pairs within still iterating through the pairs among the dict; fix by John Goldsmith July 6 2015
     def FilterZeroCountEntries(self, iteration_number):
+        TempDeletionList = dict()
         for key, entry in self.m_EntryDict.items():
             if len(key) == 1:
                 entry.m_Count = 1
@@ -95,8 +97,10 @@ class Lexicon:
             if entry.m_Count == 0:
                 self.m_DeletionList.append((key, iteration_number))
                 self.m_DeletionDict[key] = 1
-                del self.m_EntryDict[key]
+                TempDeletionList[key] = 1
                 print("Excluding this bad candidate:", key)
+        for key in TempDeletionList:
+            del self.m_EntryDict[key]
     # ---------------------------------------------------------#
     def ReadCorpus(self, infilename):
         print("Name of data file:", infilename)
@@ -370,7 +374,7 @@ class Lexicon:
 
 # ---------------------------------------------------------#        
     def PrintLexicon(self, outfile):
-        for key in sorted(self.m_EntryDict.iterkeys()):             
+        for key in sorted(self.m_EntryDict.keys()):             
             self.m_EntryDict[key].Display(outfile) 
         for iteration, key in self.m_DeletionList:
             print(iteration, key, file=outfile)
