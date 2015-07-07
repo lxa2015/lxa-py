@@ -11,7 +11,7 @@ Run the following:
     $ git clone https://github.com/lxa2015/lxa-py.git
     $ cd lxa-py/
 
-Now you are at the directory `lxa-py/` are ready to use any of the core components of Linguistica.
+Now you are at the directory `lxa-py/` and ready to use any of the core components of Linguistica.
 
 Core components
 ---------------
