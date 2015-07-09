@@ -3,6 +3,7 @@ __author__ = 'Anton Melnikov'
 from argparse import ArgumentParser
 from collections import Counter, namedtuple, defaultdict
 from concurrent.futures import ProcessPoolExecutor
+from enum import Enum
 from functools import partial
 from itertools import combinations, islice, chain
 from math import factorial
@@ -21,6 +22,10 @@ WordPair = namedtuple('WordPair', ['word1', 'word2',
 WordPattern = namedtuple('WordPattern', ['word_pair',
                                          'alternation_freq',
                                          'skeleton_freq'])
+
+class SortingKey(Enum):
+    alternations = 0
+    skeletons = 1
 
 class AlternationPairs:
     def __init__(self):
@@ -82,18 +87,20 @@ class AlternationPairs:
         pairs = self.get_pairs(skeleton=skeleton, alternation=alternation)
         return pairs.__next__()
 
-    def itersorted(self, key='alternation_freq', reverse=True):
+    def itersorted(self, key=SortingKey.alternations, reverse=True):
 
-        if key == 'alternation_freq':
+        if key == SortingKey.alternations:
             for alternation, count in self._alternation_counter.most_common():
                 for pair in self.get_pairs(alternation=alternation):
                     yield pair
-        elif key == 'skeleton_freq':
+        elif key == SortingKey.skeletons:
             for skeleton, count in self._skeleton_counter.most_common():
                 for pair in self.get_pairs(skeleton=skeleton):
                     yield pair
         else:
             return
+
+
 
     def remove(self, item: WordPair):
         """
@@ -134,6 +141,158 @@ class AlternationPairs:
             if n:
                 keep_going = True
 
+class InfixSets:
+    def __init__(self):
+        self.skeletons_to_infixes = {}
+        self.infixes_to_skeletons = defaultdict(set)
+
+        self.skeletons_to_words = {}
+        self.infixes_to_words = defaultdict(set)
+
+        self.skeleton_counter = Counter()
+        self.infix_counter = Counter()
+
+    def __repr__(self):
+        return 'InfixSets({})'.format(pformat(self.skeletons_to_infixes))
+
+    @classmethod
+    def from_pairs(cls, pairs: AlternationPairs):
+        """
+        :param pairs:
+        :return InfixSets:
+        """
+        infix_sets = cls()
+        for skeleton in pairs.skeletons.keys():
+            skeleton_pairs = pairs.get_pairs(skeleton=skeleton)
+            infixes = []
+            words = []
+            for skeleton_pair in skeleton_pairs:
+                infixes += list(skeleton_pair.alternation)
+                words += [skeleton_pair.word1, skeleton_pair.word2]
+
+            if infixes and words:
+                infixes = frozenset(infixes)
+                words = set(words)
+
+                infix_sets.skeletons_to_infixes[skeleton] = infixes
+                infix_sets.infixes_to_skeletons[infixes].add(skeleton)
+
+                infix_sets.skeletons_to_words[skeleton] = words
+
+        infix_sets.infix_counter = Counter(infix_sets.skeletons_to_infixes.values())
+        for skeleton, words in infix_sets.skeletons_to_words.items():
+            infix_sets.skeleton_counter[skeleton] += len(words)
+
+            # add the skeleton's words to that infix
+            for infix_set, skeletons in infix_sets.infixes_to_skeletons.items():
+                if skeleton in skeletons:
+                    infix_sets.infixes_to_words[infix_set].update(words)
+
+        return infix_sets
+
+    def _remove_infix(self, infix_set):
+        """
+        Each skeleton is only associated with one set of infixes,
+        so removing an infix entails removing all of the skeletons
+        which associate with (contain) that infix
+        """
+
+        # remove it from the dicts of infixes
+        del self.infixes_to_skeletons[infix_set]
+        del self.infixes_to_words[infix_set]
+
+        # remove the associated skeletons
+        for skeleton, its_infixes in list(self.skeletons_to_infixes.items()):
+            if infix_set == its_infixes:
+                del self.skeletons_to_infixes[skeleton]
+                del self.skeleton_counter[skeleton]
+                    
+                del self.skeletons_to_words[skeleton]
+
+
+        # rebuild the infix counter
+        self.infix_counter = Counter(self.skeletons_to_infixes.values())
+
+    def _remove_skeleton(self, skeleton):
+        """
+        Each infix can associate with multiple skeletons,
+        so removing a skeleton does not require us to remove
+        all of the associated infixes"""
+
+        del self.skeletons_to_infixes[skeleton]
+        del self.skeleton_counter[skeleton]
+
+        skeleton_words = self.skeletons_to_words.pop(skeleton)
+
+        for infix_set, its_skeletons in list(self.infixes_to_skeletons.values()):
+            if skeleton in its_skeletons:
+                self.infixes_to_skeletons[infix_set].remove(skeleton)
+
+                # decrease the infix counter by 1
+                # (because there is now one less skeleton for that infix)
+                self.infix_counter[infix_set] -= 1
+
+        for infix_set, its_words in self.infixes_to_words.values():
+            if skeleton_words.intersection(its_words):
+
+                # remove all words that this skeleton pointed to
+                # from the infix-to-words dictionary
+                self.infixes_to_words[infix_set].difference_update(skeleton_words)
+
+
+    def filter_items(self, min_infix_count=5, min_skeleton_count=3):
+        keep_going = True
+        while keep_going:
+            keep_going = False
+
+            for infix_set, count in list(self.infix_counter.items()):
+                if count < min_infix_count:
+                    self._remove_infix(infix_set)
+                    keep_going = True
+
+            for skeleton, count in list(self.skeleton_counter.items()):
+                if count < min_skeleton_count:
+                    self._remove_skeleton(skeleton)
+                    keep_going = True
+
+    def __get_robustness(self, infix_set: frozenset) -> int:
+        skeletons = self.infixes_to_skeletons[infix_set]
+        len_skeleton = lambda skeleton: sum(len(part) for part in skeleton)
+
+        infix_set_cost = len(infix_set)
+        skeletons_cost = sum(len_skeleton(s) for s in skeletons)
+        words_cost = sum(len(word) for word
+                         in self.infixes_to_words[infix_set])
+
+        robustness = words_cost - (infix_set_cost + skeletons_cost)
+        return robustness
+
+
+
+    def itersorted(self):
+        """
+        sort by robustness
+        (num of all letters of words associated with a signature -
+        (num of all letters of all skeletons + num of letters of an infix))
+        """
+        infixes_robustness = {infix_set: self.__get_robustness(infix_set)
+                                 for infix_set in self.infixes_to_words}
+        sorted_infix_sets = sorted(infixes_robustness,
+                                   key=lambda infix_set: infixes_robustness[infix_set],
+                                   reverse=True)
+        for infix_set in sorted_infix_sets:
+            infix_words = self.infixes_to_words[infix_set]
+            infix_signatures = self.infixes_to_skeletons[infix_set]
+            infix_count = self.infix_counter[infix_set]
+            robustness = infixes_robustness[infix_set]
+            yield (infix_set, infix_signatures, infix_words,
+                   infix_count, robustness)
+
+
+
+
+
+
 def are_similar(word1: str, word2: str, max_diff_length=2,
                 allowed_op_kinds=None) -> (bool, tuple):
     if not allowed_op_kinds:
@@ -153,7 +312,6 @@ def are_similar(word1: str, word2: str, max_diff_length=2,
             return True, all_ops
 
     return False, None
-
 
 def make_pair(word1: str, word2: str, max_diff_length=2) -> WordPair:
     result = are_similar(word1, word2, max_diff_length)
@@ -266,7 +424,7 @@ def combine_patterns(pairs: AlternationPairs) -> dict:
 
         for pair in skeleton_pairs:
             word_pairs += [pair.word1, pair.word2]
-            alternations.append('/'.join(pair.alternation))
+            alternations += list(pair.alternation)
 
         if word_pairs:
             # put them all together
@@ -296,18 +454,19 @@ def run(corpus_path, min_stem_length, max_alternation_length,
         print('finding patterns in pairs...')
 
     filter_pairs(diff_pairs,
-                         min_alt_freq=min_alternation_freq,
-                         min_skeleton_freq=min_skeleton_freq)
+                 min_alt_freq=min_alternation_freq,
+                 min_skeleton_freq=min_skeleton_freq)
     if verbose:
         print('combining the patterns by skeletons...')
 
-    combined_patterns = combine_patterns(diff_pairs)
+    infix_sets = InfixSets.from_pairs(diff_pairs)
+    infix_sets.filter_items(min_alternation_freq, min_skeleton_freq)
 
     if verbose:
         print('writing the patterns...')
 
     corpus_name = corpus_path.stem
-    print_patterns(diff_pairs, combined_patterns, corpus_name)
+    print_patterns(diff_pairs, infix_sets, corpus_name)
 
     if verbose:
         print('done')
@@ -324,7 +483,7 @@ def print_diff_pairs(diff_pairs):
 
 
 def print_patterns(patterns: AlternationPairs,
-                   combined_skeletons: dict,
+                   infix_sets: InfixSets,
                    name):
     # sort by frequency of alternation patterns
 
@@ -334,20 +493,14 @@ def print_patterns(patterns: AlternationPairs,
 
     new_file_path = Path(results_dir, 'apophony_{}.txt'.format(name))
     with new_file_path.open('w') as new_file:
-        for word_pair in patterns.itersorted():
-            pre_skeleton, alternation, post_skeleton = word_pair.comparison
-            joined_alt = '/'.join(alternation)
-            alt_count = patterns._alternation_counter[word_pair.alternation]
-            skeleton_count = patterns._skeleton_counter[word_pair.skeleton]
+        print('*****\ncombined patterns:', file=new_file)
+        for infixes, skeletons, words, count, robustness in infix_sets.itersorted():
+            print('{}\n{}\n[{}]\ncount: {}\trobustness: {}'.format(
+                    '/'.join(infixes), pformat(skeletons),
+                    pformat(words), count, robustness),
+                file=new_file)
+            print()
 
-            print('{} {}\t{}[{}]{}\talternation occurrence: {};\tskeleton occurrence: {}'
-                  .format(word_pair.word1, word_pair.word2,
-                          pre_skeleton, joined_alt, post_skeleton,
-                          alt_count, skeleton_count),
-                  file=new_file)
-
-        print('*****\ncombined skeletons:', file=new_file)
-        pprint(combined_skeletons, stream=new_file, width=70)
 
 if __name__ == '__main__':
     arg_parser = ArgumentParser()
