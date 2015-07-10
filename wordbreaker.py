@@ -91,7 +91,7 @@ class Lexicon:
     def FilterZeroCountEntries(self, iteration_number):
         TempDeletionList = dict()
         for key, entry in self.m_EntryDict.items():
-            if len(key) == 1:
+	    if len(key) == 1 and entry.m_Count==0:
                 entry.m_Count = 1
                 continue
             if entry.m_Count == 0:
