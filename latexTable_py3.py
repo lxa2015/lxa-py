@@ -16,7 +16,7 @@ def findLongestLine(table):
 #		Main program 
 #--------------------------------------------------------------------##
 
-def MakeLatexTable(datalines, outfile):
+def MakeLatexTable(datalines,   outfile):
 	 
 	
 	 

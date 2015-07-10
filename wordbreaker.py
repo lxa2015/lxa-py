@@ -49,7 +49,7 @@ class LexiconEntry:
         if len(self.m_CountRegister) > 0:
             last_count = self.m_CountRegister[-1][1]
             if self.m_Count != last_count:
-                self.m_CountRegister.append((current_iteration-1, self.m_Count))
+                self.m_CountRegister.append((current_iteration, self.m_Count))
         else:
             self.m_CountRegister.append((current_iteration, self.m_Count))
         self.m_Count = 0
@@ -91,7 +91,7 @@ class Lexicon:
     def FilterZeroCountEntries(self, iteration_number):
         TempDeletionList = dict()
         for key, entry in self.m_EntryDict.items():
-	    if len(key) == 1 and entry.m_Count==0:
+            if len(key) == 1 and entry.m_Count==0:
                 entry.m_Count = 1
                 continue
             if entry.m_Count == 0:
@@ -269,7 +269,7 @@ class Lexicon:
         bitcost = BestCompressedLength[outerscan]
         return (Parse[wordlength],bitcost)
 # ---------------------------------------------------------#
-    def GenerateCandidates(self, howmany, outfile):
+    def GenerateCandidates(self, howmany, outfile, iterationnumber):
         Nominees = dict()
         NomineeList = list()
         for parsed_line in self.m_ParsedCorpus:     
@@ -290,12 +290,13 @@ class Lexicon:
             if len(NomineeList) == howmany:
                 break
         latex_data= list()
+        latex_data.append("Iteration number " + str(iterationnumber))
         latex_data.append("piece   count   status")
         for nominee, count in NomineeList:
             self.AddEntry(nominee,count)
             print("%20s   %8i" %(nominee, count))
             latex_data.append(nominee +  "\t" + "{:,}".format(count) )
-        MakeLatexTable(latex_data,outfile)
+        MakeLatexTable(latex_data, outfile)
         self.ComputeDictFrequencies()
         return NomineeList
 
@@ -583,7 +584,7 @@ def main(language, corpus, datafolder,
     for current_iteration in range(1, numberofcycles):
         print("\n Iteration number", current_iteration, "out of ", numberofcycles)
         print("\n\n Iteration number", current_iteration, file=outfile)
-        this_lexicon.GenerateCandidates(howmanycandidatesperiteration, outfile)
+        this_lexicon.GenerateCandidates(howmanycandidatesperiteration, outfile,current_iteration)
         this_lexicon.ParseCorpus (outfile, current_iteration)
         this_lexicon.RecallPrecision(current_iteration, outfile,total_word_count_in_parse)
         
