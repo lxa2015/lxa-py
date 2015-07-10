@@ -202,8 +202,6 @@ class Lexicon:
             self.m_ParsedCorpus.append(parsed_line)
             self.m_CorpusCost += bit_cost
             for word in parsed_line:
-                #if len(word) == 0:
-                #    print "line 154, about to crash:", line, parsed_line
                 self.m_EntryDict[word].m_Count +=1
                 self.m_NumberOfHypothesizedRunningWords += 1
         self.FilterZeroCountEntries(current_iteration)
@@ -266,11 +264,6 @@ class Lexicon:
                 Parse[outerscan] = list()
             if verboseflag: print("\n\t\t\t\t\t\t\t\tchosen:", LastChunk, end=" ", file=outfile)
             Parse[outerscan].append(LastChunk)
-
-            #if len(LastChunk) == 0:
-            #    print >>outfile, "line 212", word, Parse[outerscan]         
-            #    print "line 212", word, "outerscan:", outerscan, "Last chunk:", LastChunk, Parse[outerscan]        
-
         if verboseflag: 
             PrintList(Parse[wordlength], outfile)
         bitcost = BestCompressedLength[outerscan]
@@ -296,7 +289,6 @@ class Lexicon:
                 NomineeList.append((nominee,count))
             if len(NomineeList) == howmany:
                 break
-        #print "Nominees:"
         latex_data= list()
         latex_data.append("piece   count   status")
         for nominee, count in NomineeList:
