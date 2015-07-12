@@ -361,11 +361,10 @@ def make_chunks(sequence, num_chunks, num_elements):
     begin = 0
     chunk_size = round(num_elements / num_chunks)
     end = chunk_size
-    for n in range(num_elements):
-        if n > 0 and n % chunk_size == 0:
-            yield islice(sequence, begin, end)
-            begin = end
-            end += chunk_size
+    for _ in range(0, num_elements, chunk_size):
+        yield islice(sequence, begin, end)
+        begin = end
+        end += chunk_size
 
 
 def find_pairs(corpus: list, max_alternation_length=2,
