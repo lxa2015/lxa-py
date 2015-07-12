@@ -226,7 +226,7 @@ class InfixSets:
 
         skeleton_words = self.skeletons_to_words.pop(skeleton)
 
-        for infix_set, its_skeletons in list(self.infixes_to_skeletons.values()):
+        for infix_set, its_skeletons in self.infixes_to_skeletons.items():
             if skeleton in its_skeletons:
                 self.infixes_to_skeletons[infix_set].remove(skeleton)
 
@@ -234,7 +234,7 @@ class InfixSets:
                 # (because there is now one less skeleton for that infix)
                 self.infix_counter[infix_set] -= 1
 
-        for infix_set, its_words in self.infixes_to_words.values():
+        for infix_set, its_words in self.infixes_to_words.items():
             if skeleton_words.intersection(its_words):
 
                 # remove all words that this skeleton pointed to
