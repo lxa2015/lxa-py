@@ -127,6 +127,11 @@ def GetSuccessors(wordlist, WordsBroken):
             successors[wordbeginning] = set()
 
         successors[wordbeginning].add("NULL")
+
+    for wordbegin in successors: #turn these into an alphabetized list
+        successors[wordbegin]=list (successors[wordbegin])
+        successors[wordbegin].sort()
+
     return successors
 
 
@@ -151,6 +156,43 @@ def OutputSuccessors(outfilename, successors, SF_threshold, reverse=False):
 
             print(word + "\t" + str(SF_size) + "\t" + \
                   "\t".join(sorted(successors[word])), file=f)
+
+def OutputSignatures1(outfilename, successors):
+    stemlist = list(successors.keys())
+    stemlist.sort()
+    sigs = dict()
+    columnwidth = 12
+    howmanyperline = 5
+    with outfilename.open("w") as f:
+        for stem in stemlist:
+            suffixes= successors[stem]
+            if len(suffixes) == 1 and suffixes[0]=="NULL":
+                continue
+            suffix_string = "-".join(suffixes)
+            print (   stem, suffixes , file = f)
+            if suffix_string not in sigs:
+                sigs[suffix_string] = dict()
+            sigs[suffix_string][stem]= 1
+	
+        siglist = list(sigs.keys())
+        siglist.sort(key= lambda x:len(sigs[x]),reverse=True)   
+
+        print (file=f)
+	
+        for sig in siglist:
+            print ("\n\n________________________________", file=f)	
+            print (sig, file=f)	
+            print ("________________________________", file=f)
+            i = 0    
+            for stem in sigs[sig]:    
+                print (stem, " "*(columnwidth-len(stem)), end="", file=f)    		
+                i=i+1
+                if i==howmanyperline:
+                    i = 0
+                    print (file=f)
+		
+
+             
 
 def OutputTrie(outfile, WordsBroken, reverse=False):
 
@@ -202,6 +244,8 @@ def main(language, corpus, datafolder,
      
     outfile_trieRtoL_name = Path(outfolder, corpusName + "_trieRtoL.txt")
     outfile_PF_name = Path(outfolder, corpusName + "_PF.txt")
+	
+    outfile_Signatures_name = Path(outfolder, corpusName + "_Signatures.txt")
 
     #--------------------------------------------------------------------##
     #        read wordlist
@@ -251,6 +295,9 @@ def main(language, corpus, datafolder,
     predecessors = GetSuccessors(reversedwordlist, WordsBrokenRtoL)
     OutputSuccessors(outfile_PF_name, predecessors, SF_threshold, reverse=True)
 
+    print("printing signatures...", flush=True)
+    OutputSignatures1(outfile_Signatures_name, successors)
+
     #--------------------------------------------------------------------------#
     #        Print tries (left-to-right, right-to-left)
     #--------------------------------------------------------------------------# 
@@ -261,7 +308,7 @@ def main(language, corpus, datafolder,
     OutputTrie(outfile_trieRtoL_name, WordsBrokenRtoL, reverse=True)
 
     stdout_list("Output files:", outfile_SF_name, outfile_PF_name,
-                                 outfile_trieLtoR_name, outfile_trieRtoL_name)
+                                 outfile_trieLtoR_name, outfile_trieRtoL_name, outfile_Signatures_name)
 
 
 if __name__ == "__main__":
