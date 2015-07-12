@@ -450,12 +450,8 @@ def run(corpus_path, min_stem_length, max_alternation_length,
     diff_pairs = find_pairs(corpus,
                              max_alternation_length=max_alternation_length,
                              verbose=verbose)
-    if verbose:
-        print('finding patterns in pairs...')
-
-    filter_pairs(diff_pairs,
-                 min_alt_freq=min_alternation_freq,
-                 min_skeleton_freq=min_skeleton_freq)
+    # if verbose:
+    #     print('finding patterns in pairs...')
     if verbose:
         print('combining the patterns by skeletons...')
 
@@ -495,11 +491,11 @@ def print_patterns(patterns: AlternationPairs,
     with new_file_path.open('w') as new_file:
         print('*****\ncombined patterns:', file=new_file)
         for infixes, skeletons, words, count, robustness in infix_sets.itersorted():
-            print('{}\n{}\n[{}]\ncount: {}\trobustness: {}'.format(
-                    '/'.join(infixes), pformat(skeletons),
-                    pformat(words), count, robustness),
+            print('{}\n{}\n{}\ncount: {}\trobustness: {}'.format(
+                    '/'.join(infixes), pformat(skeletons), pformat(words),
+                    count, robustness),
                 file=new_file)
-            print()
+            print(file=new_file)
 
 
 if __name__ == '__main__':
