@@ -1,3 +1,5 @@
+#!/usr/bin/env python3.4
+
 __author__ = 'Anton Melnikov'
 
 from argparse import ArgumentParser
