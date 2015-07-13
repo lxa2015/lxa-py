@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from distutils.util import strtobool
 from collections import OrderedDict
+from pprint import pprint
 
 
 #------------------------------------------------------------------------------#
@@ -15,25 +16,169 @@ from collections import OrderedDict
 
 
 def get_language_corpus_datafolder(_language, _corpus, _datafolder,
-                                   filename="config.json"):
-    language, corpus, datafolder = load_config(_language, _corpus, _datafolder,
-                                               filename)
+                                   _configfilename="config.json"):
 
-    print("language: {}".format(language))
-    print("corpus file: {}".format(corpus))
-    print("datafolder: {}".format(datafolder))
-    proceed = input("proceed? [Y/n] ")
-    if proceed and not strtobool(proceed):
-        sys.exit() # if "proceed" is empty, then false (= good to go)
+    print("\n===============================================================\n")
+
+    # -------------------------------------------------------------------------#
+    # check current directory and config filename. Print them to stdout
+
+    current_dir = Path.cwd()
+    print("Your current directory:\n{}\n".format(current_dir))
+    print("Configuration filename:\n{}\n".format(_configfilename))
+    config_path = Path(_configfilename)
+    # -------------------------------------------------------------------------#
+
+    # -------------------------------------------------------------------------#
+    # The following 3 chunks of code are meant to determine the values of
+    # language, corpus, and datafolder.
+
+    # 1. If user explicitly provides command line arguments for any of
+    #   {language, corpus, datafolder},
+    #   then the program should use them.
+
+    language, corpus, datafolder = _language, _corpus, _datafolder
+
+    print("According to your command line arguments --\n"
+          "Language: {}\n"
+          "Corpus: {}\n"
+          "Datafolder path "
+          "(relative to current directory): {}\n".format(language,
+                                                         corpus, datafolder))
+
+    if not language or not corpus or not datafolder:
+
+    # 2. If any of {language, corpus, datafolder} are None (= not explicitly
+    #   given from the user's command line arguments),
+    #   then the program attempts to find the configuration file and retrieves
+    #   whichever values among {language, corpus, datafolder} are needed.
+
+        print("At least one of the three values above is None.\n"
+              "The program now attempts to retrieve the missing values "
+              "from the configuration file {}\n".format(_configfilename))
+
+        try:
+            with config_path.open() as config_file:
+                config = json.load(config_file)
+
+                print("{} is located. It contains the following "
+                      "key-value pairs:".format(_configfilename))
+                pprint(config)
+                print()
+
+                if not language:
+                    try:
+                        language = config['language']
+                    except (KeyError, ValueError):
+                        language = None
+                if not corpus:
+                    try:
+                        corpus = config['corpus']
+                    except (KeyError, ValueError):
+                        corpus = None
+                if not datafolder:
+                    try:
+                        datafolder = config['datafolder']
+                    except (KeyError, ValueError):
+                        datafolder = None
+
+        except (FileNotFoundError, ValueError):
+            print("Error in reading the configuration file {} "
+                  "in the current directory!".format(config_path))
+
+    # 3. If any of {language, corpus, datafolder} are still unknown,
+    #   then the program asks the user
+    #   to provide them using the input() function.
+
+        if not language:
+            language = input('Enter language name: ')
+        if not corpus:
+            corpus = input('Enter corpus filename: ')
+        if not datafolder:
+            datafolder = input('Enter datafolder relative path: ')
+
+    # -------------------------------------------------------------------------#
+
+    # -------------------------------------------------------------------------#
+    # print to stdout the latest info for language, corpus, and datafolder
+
+    print("\nNow the program has the following --")
+
+    print("Language: {}".format(language))
+    print("Corpus: {}".format(corpus))
+    print("Datafolder path "
+          "(relative to current directory): {}".format(datafolder))
 
     testPath = Path(datafolder, language, corpus)
+
+    # -------------------------------------------------------------------------#
+    # print to stdout to show user what corpus file is being expected
+    # ask user if the program should proceed or not
+
+    print("\nBased on these three values, the program is looking for the "
+          "following corpus file "
+          "relative to the current directory:\n{}".format(testPath))
+
+    print("\nIf any of {language, corpus, datafolder} or the expected corpus "
+          "file is undesirable, terminate the program now and run again by "
+          "explicitly providing the command line arguments.\n")
+
+    proceed = input("Proceed? [Y/n] ")
+    if proceed and not strtobool(proceed):
+        # if "proceed" is empty, then false (= program good to go)
+        sys.exit("Program terminated by user")
+    # -------------------------------------------------------------------------#
+
+    # -------------------------------------------------------------------------#
+    # make sure the expected corpus file exists. If not, exit the program.
+
     if not testPath.exists():
         sys.exit('Corpus file "{}" does not exist. '
-                 'Check file paths and names.'.format(str(testPath) ))
+                 'Check file paths and names.'.format(testPath))
+    # -------------------------------------------------------------------------#
+
+    # -------------------------------------------------------------------------#
+    # write the configuration file
+
+    config = {'language': language,
+              'corpus': corpus,
+              'datafolder': datafolder}
+    with config_path.open('w') as config_file:
+        json.dump(config, config_file)
+    # -------------------------------------------------------------------------#
 
     return language, corpus, datafolder
 
 
+def load_config_for_command_line_help(configfilename="config.json"):
+
+    config_path = Path(configfilename)
+    try:
+        with config_path.open() as config_file:
+            config = json.load(config_file)
+        language = config['language']
+        corpus = config['corpus']
+        datafolder = config['datafolder']
+
+        configtext = "The configuration file {} is present: ".format(configfilename) + \
+                     "[language: {}] ".format(language) + \
+                     "[corpus file: {}] ".format(corpus) + \
+                     "[data folder relative to " + \
+                     "current directory: \"{}\"]\n".format(datafolder)
+
+    except (FileNotFoundError, KeyError, ValueError):
+        language = None
+        corpus = None
+        datafolder = None
+
+        configtext = "No valid configuration file located."
+
+    return language, corpus, datafolder, configtext
+
+
+# load_config() not used by get_language_corpus_datafolder() now
+# but don't delete this function yet
+# Anton may still be using it -- check with him
 def load_config(language, corpus, datafolder, filename='config.json',
                 writenew=True):
     config_path = Path(filename)

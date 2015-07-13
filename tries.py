@@ -6,25 +6,38 @@
 # John Goldsmith 2015
 # Jackson Lee 2015
 
+import sys
 import argparse
 from pathlib import Path
 
 import ngrams
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix, stdout_list)
+                     changeFilenameSuffix, stdout_list,
+                     load_config_for_command_line_help)
 
 
-def makeArgParser():
+def makeArgParser(configfilename="config.json"):
+
+    language, \
+    corpus, \
+    datafolder, \
+    configtext = load_config_for_command_line_help(configfilename)
+
     parser = argparse.ArgumentParser(
-        description="If neither config.json nor {language, corpus, datafolder} "
-                    "arguments are found, user inputs are prompted.",
+        description="The program computes tries given corpus data.\n\n{}"
+                    .format(configtext),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument("--config", help="configuration filename",
+                        type=str, default=configfilename)
+
     parser.add_argument("--language", help="Language name",
                         type=str, default=None)
     parser.add_argument("--corpus", help="Corpus file to use",
                         type=str, default=None)
-    parser.add_argument("--datafolder", help="path of the data folder",
+    parser.add_argument("--datafolder", help="relative path of the data folder",
                         type=str, default=None)
+
     parser.add_argument("--minstem", help="Minimum stem length; "
                         "usually from 2 to 5, where a smaller number means "
                         "you can find shorter stems although the program "
@@ -229,22 +242,28 @@ def main(language, corpus, datafolder,
     corpusName = Path(corpus).stem
 
     outfolder = Path(datafolder, language, "tries")
-    infolder = Path(datafolder, language, "ngrams")
-
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
 
-    infilename = Path(infolder, corpusName + "_words.txt")
+    # hack for John:
+    # if the "corpus" string ends with ".dx1", then use the dx1 file as wordlist
+    # instead of <corpusName>_words.txt
 
-    if not infilename.exists():
-        ngrams.main(language, corpus, datafolder)
+    if Path(corpus).suffix.lower() == ".dx1":
+        infilename = Path(datafolder, language, corpus)
+    else:
+        infolder = Path(datafolder, language, "ngrams")
+        infilename = Path(infolder, corpusName + "_words.txt")
+
+        if not infilename.exists():
+            ngrams.main(language, corpus, datafolder)
 
     outfile_SF_name = Path(outfolder, corpusName + "_SF.txt")
     outfile_trieLtoR_name = Path(outfolder, corpusName + "_trieLtoR.txt")
      
     outfile_trieRtoL_name = Path(outfolder, corpusName + "_trieRtoL.txt")
     outfile_PF_name = Path(outfolder, corpusName + "_PF.txt")
-	
+
     outfile_Signatures_name = Path(outfolder, corpusName + "_Signatures.txt")
 
     #--------------------------------------------------------------------##
@@ -320,7 +339,7 @@ if __name__ == "__main__":
     SF_threshold = args.minsize
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                                   args.corpus, args.datafolder)
+                                      args.corpus, args.datafolder, args.config)
 
     main(language, corpus, datafolder,
          MinimumStemLength, MinimumAffixLength, SF_threshold)
