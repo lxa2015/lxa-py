@@ -339,7 +339,8 @@ if __name__ == "__main__":
     SF_threshold = args.minsize
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                      args.corpus, args.datafolder, args.config)
+                                      args.corpus, args.datafolder, args.config,
+                                      description="This program computes tries.")
 
     main(language, corpus, datafolder,
          MinimumStemLength, MinimumAffixLength, SF_threshold)
