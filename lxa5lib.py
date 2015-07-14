@@ -15,9 +15,19 @@ from pprint import pprint
 #------------------------------------------------------------------------------#
 
 
+def proceed_or_not():
+    proceed = input("Should the program proceed? [Y/n] ")
+    if proceed and not strtobool(proceed):
+        # if "proceed" is empty, then false (= program good to go)
+        sys.exit("Program terminated by user")
+    print('--------------------------')
+
+
 def get_language_corpus_datafolder(_language, _corpus, _datafolder,
                                    configfilename="config.json",
                                    description=""):
+
+    newconfig = False # need to write new config file or not
 
     print("\n===============================================================\n")
     print(description)
@@ -34,11 +44,12 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
     if config_path.exists():
         configtext = "(present in the current directory)"
     else:
-        configtext = "(not present in the current directory)"
+        configtext = "(NOT present in the current directory)"
+        newconfig = True
 
     print("Configuration filename:\n{} {}\n".format(configfilename, configtext))
 
-    dummy = input("Press enter to continue.")
+    proceed_or_not()
 
     # -------------------------------------------------------------------------#
 
@@ -65,6 +76,12 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
     #       if config file is present:
     #           the program attempts to retrieve whichever values
     #           among {language, corpus, datafolder} are needed.
+
+    if language or corpus or datafolder:
+        # if true,
+        # then at least one of these three arguments is explicitly entered
+        # by user, which means we need to write the new config file
+        newconfig = True
 
     if not language or not corpus or not datafolder:
         print("At least one of the three values above is None.\n")
@@ -107,14 +124,26 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
     #   then the program asks the user
     #   to provide them using the input() function.
 
-    if not language or not corpus or not datafolder:
+    if not language:
+        language = input('Enter language name: ')
+        newconfig = True
+    if not corpus:
+        corpus = input('Enter corpus filename: ')
+        newconfig = True
+    if not datafolder:
+        datafolder = input('Enter datafolder relative path: ')
+        newconfig = True
 
-        if not language:
-            language = input('Enter language name: ')
-        if not corpus:
-            corpus = input('Enter corpus filename: ')
-        if not datafolder:
-            datafolder = input('Enter datafolder relative path: ')
+    # -------------------------------------------------------------------------#
+    # write the configuration file
+
+    if newconfig:
+        config = {'language': language,
+                  'corpus': corpus,
+                  'datafolder': datafolder}
+        with config_path.open('w') as config_file:
+            json.dump(config, config_file)
+            print('New configuration file \"{}\" written.'.format(config_path))
 
     # -------------------------------------------------------------------------#
 
@@ -142,10 +171,8 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
           "file is undesirable, terminate the program now and run again by\n"
           "explicitly providing the command line arguments.\n")
 
-    proceed = input("Should the program proceed? [Y/n] ")
-    if proceed and not strtobool(proceed):
-        # if "proceed" is empty, then false (= program good to go)
-        sys.exit("Program terminated by user")
+    proceed_or_not()
+
     # -------------------------------------------------------------------------#
 
     # -------------------------------------------------------------------------#
@@ -156,15 +183,7 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
                  'Check file paths and names.'.format(testPath))
     # -------------------------------------------------------------------------#
 
-    # -------------------------------------------------------------------------#
-    # write the configuration file
-
-    config = {'language': language,
-              'corpus': corpus,
-              'datafolder': datafolder}
-    with config_path.open('w') as config_file:
-        json.dump(config, config_file)
-    # -------------------------------------------------------------------------#
+    print('--------------------------')
 
     return language, corpus, datafolder
 

@@ -327,7 +327,8 @@ def main(language, corpus, datafolder,
     OutputTrie(outfile_trieRtoL_name, WordsBrokenRtoL, reverse=True)
 
     stdout_list("Output files:", outfile_SF_name, outfile_PF_name,
-                                 outfile_trieLtoR_name, outfile_trieRtoL_name, outfile_Signatures_name)
+                                 outfile_trieLtoR_name, outfile_trieRtoL_name,
+                                 outfile_Signatures_name)
 
 
 if __name__ == "__main__":
@@ -338,9 +339,16 @@ if __name__ == "__main__":
     MinimumAffixLength = args.minaffix
     SF_threshold = args.minsize
 
+    description="You are running {}.\n".format(__file__) + \
+                "This program computes tries.\n".format(__file__) + \
+                "MinimumStemLength = {}\n".format(MinimumStemLength) + \
+                "MinimumAffixLength = {}\n".format(MinimumAffixLength) + \
+                "SF_threshold = {}\n".format(SF_threshold)
+
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                       args.corpus, args.datafolder, args.config,
-                                      description="This program computes tries.")
+                                      description=description)
 
     main(language, corpus, datafolder,
          MinimumStemLength, MinimumAffixLength, SF_threshold)
+
