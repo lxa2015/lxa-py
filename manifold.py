@@ -24,13 +24,25 @@ from manifold_module import (GetMyWords, GetContextArray,
 import ngrams
 
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix, stdout_list)
+                     changeFilenameSuffix, stdout_list,
+                     load_config_for_command_line_help)
 
-def makeArgParser():
+
+def makeArgParser(configfilename="config.json"):
+
+    language, \
+    corpus, \
+    datafolder, \
+    configtext = load_config_for_command_line_help(configfilename)
+
     parser = argparse.ArgumentParser(
-        description="If neither config.json nor {language, corpus, datafolder} "
-                    "arguments are found, user inputs are prompted.",
+        description="This program computes word neighbors.\n\n{}"
+                    .format(configtext),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument("--config", help="configuration filename",
+                        type=str, default=configfilename)
+
     parser.add_argument("--maxwordtypes", help="Number of word types to handle",
                         type=int, default=1000)
     parser.add_argument("--nNeighbors", help="Number of neighbors",
@@ -174,8 +186,16 @@ if __name__ == "__main__":
     nEigenvectors = args.nEigenvectors
     _pickle = args.pickle
 
+    description="You are running {}.\n".format(__file__) + \
+                "This program computes word neighbors.\n" + \
+                "maxwordtypes = {}\n".format(maxwordtypes) + \
+                "nNeighbors = {}\n".format(nNeighbors) + \
+                "nEigenvectors = {}\n".format(nEigenvectors) + \
+                "_pickle = {}\n".format(_pickle)
+
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                                   args.corpus, args.datafolder)
+                                      args.corpus, args.datafolder, args.config,
+                                      description=description)
 
     main(language, corpus, datafolder,
          maxwordtypes, nNeighbors, nEigenvectors, _pickle)

@@ -340,7 +340,7 @@ if __name__ == "__main__":
     SF_threshold = args.minsize
 
     description="You are running {}.\n".format(__file__) + \
-                "This program computes tries.\n".format(__file__) + \
+                "This program computes tries.\n" + \
                 "MinimumStemLength = {}\n".format(MinimumStemLength) + \
                 "MinimumAffixLength = {}\n".format(MinimumAffixLength) + \
                 "SF_threshold = {}\n".format(SF_threshold)

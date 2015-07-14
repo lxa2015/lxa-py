@@ -91,7 +91,7 @@ def GetMyGraph(infilename: Path, useWeights=None):
 
 def GetContextArray(corpus, nwords, wordlist,
                     infileBigramsname, infileTrigramsname,
-                    _pickle):
+                    _pickle=False):
 
     WordToContexts = dict()
     ContextToWords = dict()
