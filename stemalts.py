@@ -14,7 +14,7 @@ from pathlib import Path
 from types import GeneratorType
 from pprint import pprint, pformat
 
-from lxa5_module import read_word_freq_file
+from lxa5lib import read_corpus_file
 
 from Levenshtein import opcodes
 
@@ -447,9 +447,9 @@ def run(corpus_path, min_stem_length, max_alternation_length,
     if verbose:
         print('assembling the corpus...')
     corpus_path = Path(corpus_path)
-    word_freqs = read_word_freq_file(corpus_path,
-                                     minimum_stem_length=min_stem_length)
-    corpus = sorted(w for w in word_freqs if w.isalpha())
+    word_freqs = read_corpus_file(corpus_path)
+    corpus = sorted(w for w in word_freqs
+                    if w.isalpha() and len(w) >= min_stem_length)
 
     if verbose:
         print('finding pairs in alternations...')
