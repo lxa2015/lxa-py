@@ -1,3 +1,4 @@
+from collections import Counter
 import itertools
 import math
 import os
@@ -25,10 +26,12 @@ def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
 
 
 
-def read_word_freq_file(infilename: Path, minimum_stem_length=None) -> dict:
+def read_word_freq_file(infilename: Path, minimum_stem_length=None,
+                        casefold=True) -> Counter:
+
     with infilename.open() as infile:
         lines = infile.readlines()
-        word_frequencies = {}
+        word_frequencies = Counter()
 
         for line in lines:
 
@@ -42,7 +45,8 @@ def read_word_freq_file(infilename: Path, minimum_stem_length=None) -> dict:
             if minimum_stem_length and len(word) < minimum_stem_length:
                 continue
 
-            word = word.casefold()
+            if casefold:
+                word = word.casefold()
 
             # if additional information (e.g. frequency) is present
             if rest:
@@ -52,7 +56,7 @@ def read_word_freq_file(infilename: Path, minimum_stem_length=None) -> dict:
             else:
                 freq = 1
 
-            word_frequencies[word] = freq
+            word_frequencies[word] += freq
 
     return word_frequencies
 
