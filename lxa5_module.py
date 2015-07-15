@@ -97,6 +97,7 @@ def OutputLargeDict2(outfilename, inputdict, SignatureFlag = False):
                 MaxLength = len(inputdict[stem])
             if len(stem) > MaxStemLength:
                 MaxStemLength = len(stem)
+        MaxStemLength += 1
         for length in range(MaxLength+1):  #Create a dict for each column's width
             MaxColumnWidth[length]=0
 	
@@ -109,17 +110,17 @@ def OutputLargeDict2(outfilename, inputdict, SignatureFlag = False):
                         MaxColumnWidth[signo] = len(punctuation.join(thisitem))
                 else:
                     if len(thisitem) > MaxColumnWidth[signo]:
-                        MaxColumnWidth[signo] = len(punctuation.join(thisitem))	
+                        MaxColumnWidth[signo] = len(punctuation.join(thisitem))
+	
         for stem in ItemsSortedList:   #Find the longest entry in each column
             theseitems = inputdict[stem]
             thisline = stem + " "*(MaxStemLength - len(stem))
             for signo in range(len(theseitems)):
                 thisitem=theseitems[signo]
-                print ("116", thisitem, SignatureFlag)
                 if SignatureFlag:
-                    thisline += punctuation.join(thisitem)  + " "*(MaxColumnWidth[signo] - len(thisitem))
+                    thisline += punctuation.join(thisitem)  + " "*(MaxColumnWidth[signo] +1 - len(thisitem))
                 else:
-                    thisline += thisitem + " "*(MaxColumnWidth[signo] - len(thisitem))
+                    thisline += thisitem + " "*(MaxColumnWidth[signo] + 1 - len(thisitem))
             print (thisline, file=f)
    
  
