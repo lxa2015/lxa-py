@@ -79,7 +79,10 @@ def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
             print(file=f)
             print(file=f)
 
-def OutputLargeDict2(outfilename, inputdict, howmanyperline=10):
+def OutputLargeDict2(outfilename, inputdict, SignatureFlag = False):
+    if SignatureFlag:
+        punctuation = "-"
+    else: punctuation = ""
     with outfilename.open('w') as f:
         ItemsSortedList=list(inputdict.keys())
         ItemsSortedList.sort()
@@ -96,17 +99,25 @@ def OutputLargeDict2(outfilename, inputdict, howmanyperline=10):
             MaxColumnWidth[length]=0
 	
         for stem in ItemsSortedList:   #Find the longest entry in each column
-            sigs = inputdict[stem]
-            for signo in range(len(sigs)):
-                thissig=sigs[signo]
-                if len("-".join(thissig)) > MaxColumnWidth[signo]:
-                    MaxColumnWidth[signo] = len("-".join(thissig))	
+            theseitems = inputdict[stem]
+            for signo in range(len(theseitems)):
+                thisitem=theseitems[signo]
+                if SignatureFlag:
+                    if len(punctuation.join(thisitem)) > MaxColumnWidth[signo]:
+                        MaxColumnWidth[signo] = len(punctuation.join(thisitem))
+                else:
+                    if len(thisitem) > MaxColumnWidth[signo]:
+                        MaxColumnWidth[signo] = len(punctuation.join(thisitem))	
         for stem in ItemsSortedList:   #Find the longest entry in each column
-            sigs = inputdict[stem]
+            theseitems = inputdict[stem]
             thisline = stem + " "*(MaxStemLength - len(stem))
-            for signo in range(len(sigs)):
-                thissig=sigs[signo]
-                thisline += "-".join(thissig)  + " "*(MaxColumnWidth[signo] - len(thissig))
+            for signo in range(len(theseitems)):
+                thisitem=theseitems[signo]
+                print ("116", thisitem, SignatureFlag)
+                if SignatureFlag:
+                    thisline += punctuation.join(thisitem)  + " "*(MaxColumnWidth[signo] - len(thisitem))
+                else:
+                    thisline += thisitem + " "*(MaxColumnWidth[signo] - len(thisitem))
             print (thisline, file=f)
    
  
@@ -1567,9 +1578,14 @@ def MakeStemToWords(BisigToTuple, MinimumNumberofSigUses):
         else:
             for stem, word1, word2 in BisigToTuple[bisig]:
                 if not stem in StemToWord:
-                    StemToWord[stem] = set()
-                StemToWord[stem].add(word1)
+                    StemToWord[stem] = set()     
+                StemToWord[stem].add(word1)  
                 StemToWord[stem].add(word2)
+    
+    for stem in StemToWord: 
+        thislist=list(StemToWord[stem])
+        thislist.sort()
+        StemToWord[stem]=thislist    
     return StemToWord
 
 def OutputStemFile(stemfilename: Path, StemToWord, wordFreqDict):

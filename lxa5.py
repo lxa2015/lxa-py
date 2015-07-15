@@ -157,7 +157,9 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     stemfilename = Path(outfolder, '{}_StemToWords.txt'.format(corpusName))
-    OutputStemFile(stemfilename, StemToWords, wordFreqDict)
+    #OutputStemFile(stemfilename, StemToWords, wordFreqDict)
+    OutputLargeDict2(stemfilename, StemToWords)
+
     print('===> stem file generated:', stemfilename, flush=True)
 
     # -------------------------------------------------------------------------#
@@ -198,7 +200,7 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     WordToSigs_outfilename = Path(outfolder, corpusName + "_WordToSigs.txt")
-    OutputLargeDict2(WordToSigs_outfilename, WordToSigs)
+    OutputLargeDict2(WordToSigs_outfilename, WordToSigs,SignatureFlag = True)
 
     WordToSigs_outfilename_json = changeFilenameSuffix(WordToSigs_outfilename,
                                                        ".json")
