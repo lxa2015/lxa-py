@@ -295,28 +295,34 @@ class InfixSets:
 
 
 
-def are_similar(word1: str, word2: str, max_diff_length=2,
+def are_similar(word1: str, word2: str,
+                max_len_diff=2, max_replacement_len=2,
                 allowed_op_kinds=None) -> (bool, tuple):
-    if not allowed_op_kinds:
-        # (see http://www.coli.uni-saarland.de/courses/LT1/2011/slides/Python-Levenshtein.html)
-        allowed_op_kinds = ('equal', 'replace', 'equal')
 
-    all_ops = opcodes(word1, word2)
-    op_kinds = tuple(op[0] for op in all_ops)
+    # check that the two words are not too different in length
+    if abs(len(word1) - len(word2)) <= max_len_diff:
 
-    # check that the structure of operations is allowed
-    if op_kinds == allowed_op_kinds:
+        if not allowed_op_kinds:
+            # (see http://www.coli.uni-saarland.de/courses/LT1/2011/slides/Python-Levenshtein.html)
+            allowed_op_kinds = ('equal', 'replace', 'equal')
 
-        # check that the different chunks are under the maximum allowed length
-        i1, i2 = all_ops[1][1], all_ops[1][2]
-        chunk_length = i2 - i1
-        if chunk_length <= max_diff_length:
-            return True, all_ops
+        all_ops = opcodes(word1, word2)
+        op_kinds = tuple(op[0] for op in all_ops)
+
+        # check that the structure of operations is allowed
+        if op_kinds == allowed_op_kinds:
+
+            # check that the different chunks are under the maximum allowed length
+            i1, i2 = all_ops[1][1], all_ops[1][2]
+            chunk_length = i2 - i1
+            if chunk_length <= max_replacement_len:
+                return True, all_ops
 
     return False, None
 
 def make_pair(word1: str, word2: str, max_diff_length=2) -> WordPair:
-    result = are_similar(word1, word2, max_diff_length)
+    result = are_similar(word1, word2,
+                         max_replacement_len=max_diff_length)
     similar, all_ops = result
     if similar:
 
