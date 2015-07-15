@@ -49,7 +49,6 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
 
     print("Configuration filename:\n{} {}\n".format(configfilename, configtext))
 
-    proceed_or_not()
 
     # -------------------------------------------------------------------------#
 
@@ -64,9 +63,9 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
     language, corpus, datafolder = _language, _corpus, _datafolder
 
     print("\nAccording to your command line arguments --\n"
-          "Language: {}\n"
-          "Corpus: {}\n"
-          "Datafolder path "
+          "\tLanguage: {}\n"
+          "\tCorpus: {}\n"
+          "\tDatafolder path "
           "(relative to current directory): {}\n".format(language,
                                                          corpus, datafolder))
 
@@ -94,12 +93,6 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
             try:
                 with config_path.open() as config_file:
                     config = json.load(config_file)
-
-                    print("{} contains the following "
-                          "key-value pairs:".format(configfilename))
-                    pprint(config)
-                    print()
-
                     if not language:
                         try:
                             language = config['language']
@@ -134,6 +127,9 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
         datafolder = input('Enter datafolder relative path: ')
         newconfig = True
 
+
+  
+
     # -------------------------------------------------------------------------#
     # write the configuration file
 
@@ -152,9 +148,9 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
 
     print("\nNow the program has the following --")
 
-    print("Language: {}".format(language))
-    print("Corpus: {}".format(corpus))
-    print("Datafolder path "
+    print("\tLanguage: {}".format(language))
+    print("\tCorpus: {}".format(corpus))
+    print("\tDatafolder path "
           "(relative to current directory): {}".format(datafolder))
 
     testPath = Path(datafolder, language, corpus)
