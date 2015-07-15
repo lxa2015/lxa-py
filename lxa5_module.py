@@ -1,3 +1,4 @@
+from collections import Counter
 import itertools
 import math
 import os
@@ -6,6 +7,7 @@ import time
 
 import networkx as nx
 
+from lxa5lib import read_corpus_file
 import ngrams
 #from fsm import State, Transducer, get_graph
 
@@ -120,11 +122,12 @@ def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
             print(sig, len(stemList), ' '.join(stemList), file=f)
 
 def read_word_freq_file(infilename: Path,
-                        minimum_stem_length=None, maxwordtokens=0) -> dict:
+                        maxwordtokens=0,
+                        casefold=True) -> Counter:
 
     # infilename points to the wordlist to be used
     *datafolder, language, _, corpus = infilename.parts
-    datafolder = str(Path(*datafolder))
+    datafolder = Path(*datafolder)
 
     if maxwordtokens:
         corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
@@ -136,35 +139,8 @@ def read_word_freq_file(infilename: Path,
     if not infilename.exists():
         ngrams.main(language, corpus, datafolder, maxwordtokens)
 
-    with infilename.open() as infile:
-        lines = infile.readlines()
-        word_frequencies = {}
-
-        for line in lines:
-
-            # remove trailing whitespace and see if anything useful is left
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-
-            word, *rest = line.split()
-
-            if minimum_stem_length and len(word) < minimum_stem_length:
-                continue
-
-            word = word.casefold()
-
-            # if additional information (e.g. frequency) is present
-            if rest:
-                freq = int(rest[0])
-
-            # if not, default to 1
-            else:
-                freq = 1
-
-            word_frequencies[word] = freq
-
-    return word_frequencies
+    word_freqs = read_corpus_file(infilename, casefold=casefold)
+    return word_freqs
 
 
 def list_to_string(mylist):
