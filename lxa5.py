@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from lxa5_module import (read_word_freq_file, MakeBiSignatures,
-                         MakeStemToWords, OutputLargeDict,
+                         MakeStemToWords, OutputLargeDict, OutputLargeDict2,
                          OutputStemFile, MakeSigToStems,
                          MakeStemToSig, MakeWordToSigs,
                          MakeAffixToSigs, OutputAffixFile)
@@ -198,7 +198,7 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     WordToSigs_outfilename = Path(outfolder, corpusName + "_WordToSigs.txt")
-    OutputLargeDict(WordToSigs_outfilename, WordToSigs)
+    OutputLargeDict2(WordToSigs_outfilename, WordToSigs)
 
     WordToSigs_outfilename_json = changeFilenameSuffix(WordToSigs_outfilename,
                                                        ".json")

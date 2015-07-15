@@ -212,7 +212,7 @@ class Lexicon:
         sum = int(self.m_CorpusCost + self.m_DictionaryLength)
         print("Total      cost:", "{:,}".format(sum))
         print("\nCorpus cost:", "{:,}".format(self.m_CorpusCost), file=outfile)
-        print("\Dictionary cost:", "{:,}".format(self.m_DictionaryLength), file=outfile)
+        print("Dictionary cost:", "{:,}".format(self.m_DictionaryLength), file=outfile)
         return  
 # ---------------------------------------------------------#              
     def PrintParsedCorpus(self,outfile):

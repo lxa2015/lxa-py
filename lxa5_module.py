@@ -58,7 +58,58 @@ def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
                     print(file=f)
             print(file=f)
             print(file=f)
+# John created a slight variant of preceding function, but for WordToSigs; left the old one untouched since I didn't know what other functions called it.
+def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
+    with outfilename.open('w') as f:
+        inputdictSortedList = sorted(inputdict.items(),
+                                      key=lambda x: len(x[1]), reverse=True)
 
+        # this function is originally used for outputting SigToStems
+        # so the variable names carry over here
+        for (idx, (sig, stemList)) in enumerate(inputdictSortedList):
+            print(sig, len(stemList), file=f)
+        print(file=f)
+
+        for (sig, stemList) in inputdictSortedList:
+            print(sig, len(stemList), file=f)
+            for (idx, stem) in enumerate(sorted(stemList), 1):
+                print(stem, end=' ', file=f)
+                if idx % howmanyperline == 0:
+                    print(file=f)
+            print(file=f)
+            print(file=f)
+
+def OutputLargeDict2(outfilename, inputdict, howmanyperline=10):
+    with outfilename.open('w') as f:
+        ItemsSortedList=list(inputdict.keys())
+        ItemsSortedList.sort()
+        MaxStemLength = 0
+        MaxLength = 0
+        MaxColumnWidth = dict()
+        ContentOfEachRow = list()
+        for stem in ItemsSortedList:   #Find out the maximum number of sigs for each stem
+            if len(inputdict[stem]) > MaxLength:
+                MaxLength = len(inputdict[stem])
+            if len(stem) > MaxStemLength:
+                MaxStemLength = len(stem)
+        for length in range(MaxLength+1):  #Create a dict for each column's width
+            MaxColumnWidth[length]=0
+	
+        for stem in ItemsSortedList:   #Find the longest entry in each column
+            sigs = inputdict[stem]
+            for signo in range(len(sigs)):
+                thissig=sigs[signo]
+                if len("-".join(thissig)) > MaxColumnWidth[signo]:
+                    MaxColumnWidth[signo] = len("-".join(thissig))	
+        for stem in ItemsSortedList:   #Find the longest entry in each column
+            sigs = inputdict[stem]
+            thisline = stem + " "*(MaxStemLength - len(stem))
+            for signo in range(len(sigs)):
+                thissig=sigs[signo]
+                thisline += "-".join(thissig)  + " "*(MaxColumnWidth[signo] - len(thissig))
+            print (thisline, file=f)
+   
+ 
 
 def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
 
@@ -1681,8 +1732,8 @@ def MakeWordToSigs(StemToWords, StemToSig):
 
         for word in _wordset:
             if word not in WordToSigs:
-                WordToSigs[word] = set()
-            WordToSigs[word].add(StemToSig[stem])
+                WordToSigs[word] = list()
+            WordToSigs[word].append(StemToSig[stem])
 
     return WordToSigs
 
