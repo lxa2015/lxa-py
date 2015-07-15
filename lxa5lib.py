@@ -1,5 +1,6 @@
 #!usr/bin/env python3
 
+from collections import Counter
 import sys
 import json
 from pathlib import Path
@@ -14,6 +15,34 @@ from pprint import pprint
 #
 #------------------------------------------------------------------------------#
 
+def read_corpus_file(corpus_path: Path, casefold=True) -> Counter:
+    with corpus_path.open() as corpus_file:
+        lines = corpus_file.readlines()
+    word_frequencies = Counter()
+
+    for line in lines:
+
+        # remove trailing whitespace and see if anything useful is left
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+
+        word, *rest = line.split()
+
+        if casefold:
+            word = word.casefold()
+
+        # if additional information (e.g. frequency) is present
+        if rest:
+            freq = int(rest[0])
+
+        # if not, default to 1
+        else:
+            freq = 1
+
+        word_frequencies[word] += freq
+
+    return word_frequencies
 
 def proceed_or_not():
     proceed = input("Should the program proceed? [Y/n] ")
