@@ -4,9 +4,12 @@ import math
 import os
 from pathlib import Path
 import time
-#from fsm import State, Transducer, get_graph
 
 import networkx as nx
+
+from lxa5lib import read_corpus_file
+import ngrams
+#from fsm import State, Transducer, get_graph
 
 """"     Signatures is a map: its keys are signatures. Its values are *sets* of stems.
      StemToWord is a map; its keys are stems.      Its values are *sets* of words.
@@ -15,6 +18,98 @@ import networkx as nx
      StemCounts is a map. Its keys are words.     Its values are corpus counts of stems.
 """ #---------------------------------------------------------------------------------------------------------------------------------------------#
 
+def OutputAffixFile(affixfilename, AffixToSigs):
+    AffixToSigsSortedList = [affix_sigSet for affix_sigSet in
+                             sorted(AffixToSigs.items(),
+                                    key=lambda x: len(x[1]), reverse=True)]
+
+    with affixfilename.open('w') as f:
+        for affix, sigSet in AffixToSigsSortedList:
+            print(affix, len(sigSet),
+                  ' '.join(sorted([str(x) for x in sigSet])), file=f)
+
+def MakeAffixToSigs(SigToStems):
+    AffixToSigs = dict()
+
+    for sig in SigToStems.keys():
+        for affix in sig:
+            if affix not in AffixToSigs:
+                AffixToSigs[affix] = set()
+            AffixToSigs[affix].add(sig)
+
+    return AffixToSigs
+
+def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
+    with outfilename.open('w') as f:
+        inputdictSortedList = sorted(inputdict.items(),
+                                      key=lambda x: len(x[1]), reverse=True)
+
+        # this function is originally used for outputting SigToStems
+        # so the variable names carry over here
+        for (idx, (sig, stemList)) in enumerate(inputdictSortedList):
+            print(sig, len(stemList), file=f)
+        print(file=f)
+
+        for (sig, stemList) in inputdictSortedList:
+            print(sig, len(stemList), file=f)
+            for (idx, stem) in enumerate(sorted(stemList), 1):
+                print(stem, end=' ', file=f)
+                if idx % howmanyperline == 0:
+                    print(file=f)
+            print(file=f)
+            print(file=f)
+# John created a slight variant of preceding function, but for WordToSigs; left the old one untouched since I didn't know what other functions called it.
+def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
+    with outfilename.open('w') as f:
+        inputdictSortedList = sorted(inputdict.items(),
+                                      key=lambda x: len(x[1]), reverse=True)
+
+        # this function is originally used for outputting SigToStems
+        # so the variable names carry over here
+        for (idx, (sig, stemList)) in enumerate(inputdictSortedList):
+            print(sig, len(stemList), file=f)
+        print(file=f)
+
+        for (sig, stemList) in inputdictSortedList:
+            print(sig, len(stemList), file=f)
+            for (idx, stem) in enumerate(sorted(stemList), 1):
+                print(stem, end=' ', file=f)
+                if idx % howmanyperline == 0:
+                    print(file=f)
+            print(file=f)
+            print(file=f)
+
+def OutputLargeDict2(outfilename, inputdict, howmanyperline=10):
+    with outfilename.open('w') as f:
+        ItemsSortedList=list(inputdict.keys())
+        ItemsSortedList.sort()
+        MaxStemLength = 0
+        MaxLength = 0
+        MaxColumnWidth = dict()
+        ContentOfEachRow = list()
+        for stem in ItemsSortedList:   #Find out the maximum number of sigs for each stem
+            if len(inputdict[stem]) > MaxLength:
+                MaxLength = len(inputdict[stem])
+            if len(stem) > MaxStemLength:
+                MaxStemLength = len(stem)
+        for length in range(MaxLength+1):  #Create a dict for each column's width
+            MaxColumnWidth[length]=0
+	
+        for stem in ItemsSortedList:   #Find the longest entry in each column
+            sigs = inputdict[stem]
+            for signo in range(len(sigs)):
+                thissig=sigs[signo]
+                if len("-".join(thissig)) > MaxColumnWidth[signo]:
+                    MaxColumnWidth[signo] = len("-".join(thissig))	
+        for stem in ItemsSortedList:   #Find the longest entry in each column
+            sigs = inputdict[stem]
+            thisline = stem + " "*(MaxStemLength - len(stem))
+            for signo in range(len(sigs)):
+                thissig=sigs[signo]
+                thisline += "-".join(thissig)  + " "*(MaxColumnWidth[signo] - len(thissig))
+            print (thisline, file=f)
+   
+ 
 
 def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
 
@@ -24,41 +119,26 @@ def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
             stemList = sorted(SigToStems[sig])
             print(sig, len(stemList), ' '.join(stemList), file=f)
 
-
-
-def read_word_freq_file(infilename: Path, minimum_stem_length=None,
+def read_word_freq_file(infilename: Path,
+                        maxwordtokens=0,
                         casefold=True) -> Counter:
 
-    with infilename.open() as infile:
-        lines = infile.readlines()
-        word_frequencies = Counter()
+    # infilename points to the wordlist to be used
+    *datafolder, language, _, corpus = infilename.parts
+    datafolder = Path(*datafolder)
 
-        for line in lines:
+    if maxwordtokens:
+        corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
+    else:
+        corpusName = Path(corpus).stem
 
-            # remove trailing whitespace and see if anything useful is left
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
+    infilename = Path(datafolder, language, 'ngrams', corpusName + '_words.txt')
 
-            word, *rest = line.split()
+    if not infilename.exists():
+        ngrams.main(language, corpus, datafolder, maxwordtokens)
 
-            if minimum_stem_length and len(word) < minimum_stem_length:
-                continue
-
-            if casefold:
-                word = word.casefold()
-
-            # if additional information (e.g. frequency) is present
-            if rest:
-                freq = int(rest[0])
-
-            # if not, default to 1
-            else:
-                freq = 1
-
-            word_frequencies[word] += freq
-
-    return word_frequencies
+    word_freqs = read_corpus_file(infilename, casefold=casefold)
+    return word_freqs
 
 
 def list_to_string(mylist):
@@ -1443,6 +1523,8 @@ def find_N_highest_weight_affix (wordlist, FindSuffixesFlag):
 #----------------------------------------------------------------------------------------------------------------------------#
 
 def MakeStemCounts(StemToWord, wordFreqDict):
+    #   StemCounts (key: stem | value: int --- sum of counts 
+    #                             for each word in StemToWords[stem] )
     StemCounts = dict()
     for stem in StemToWord:
         StemCounts[stem] = 0
@@ -1464,7 +1546,9 @@ def MakeStemToWords(BisigToTuple, MinimumNumberofSigUses):
                 StemToWord[stem].add(word2)
     return StemToWord
 
-def OutputStemFile(stemfilename: Path, StemToWord, StemCounts):
+def OutputStemFile(stemfilename: Path, StemToWord, wordFreqDict):
+    StemCounts = MakeStemCounts(StemToWord, wordFreqDict)
+
     with stemfilename.open('w') as stems_outfile:
         for stem in sorted(StemToWord.keys()):             
             print(stem, StemCounts[stem], ' '.join(StemToWord[stem]),
@@ -1622,8 +1706,8 @@ def MakeWordToSigs(StemToWords, StemToSig):
 
         for word in _wordset:
             if word not in WordToSigs:
-                WordToSigs[word] = set()
-            WordToSigs[word].add(StemToSig[stem])
+                WordToSigs[word] = list()
+            WordToSigs[word].append(StemToSig[stem])
 
     return WordToSigs
 

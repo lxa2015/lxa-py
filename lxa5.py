@@ -4,30 +4,29 @@
 # Jackson Lee, 2015-
 # Anton Melnikov, 2015-
 
-# TODO: trie structure
-
-# ------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 
 import sys
 import argparse
-import json
 import time
-import pickle
 from pathlib import Path
 
 from lxa5_module import (read_word_freq_file, MakeBiSignatures,
-                         MakeStemToWords, MakeStemCounts,
+                         MakeStemToWords, OutputLargeDict, OutputLargeDict2,
                          OutputStemFile, MakeSigToStems,
-                         MakeStemToSig, MakeWordToSigs)
+                         MakeStemToSig, MakeWordToSigs,
+                         MakeAffixToSigs, OutputAffixFile)
 
+from lxa5lib import (get_language_corpus_datafolder, json_pdump,
+                     changeFilenameSuffix)
 
-# ------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 #        user modified variables
-# ------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 
 NumberOfCorrections = 100  # TODO: keep or not?
 
-# ------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 
 def makeArgParser():
     parser = argparse.ArgumentParser(
@@ -36,60 +35,50 @@ def makeArgParser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--language", help="Language name",
                         type=str, default=None)
-    parser.add_argument("--corpus", help="Corpus to use",
+    parser.add_argument("--corpus", help="Corpus file to use",
                         type=str, default=None)
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
-    parser.add_argument("--minstem", help="Minimum stem length",
+    parser.add_argument("--minstem", help="Minimum stem length; "
+                        "usually from 2 to 5, where a smaller number means "
+                        "you can find shorter stems although the program "
+                        "may run a lot slower",
                         type=int, default=4)
-    parser.add_argument("--maxaffix", help="Maximum affix length",
+    parser.add_argument("--maxaffix", help="Maximum affix length; "
+                        "usually from 1 to 5, where a larger number means "
+                        "you can find longer affixes",
                         type=int, default=3)
-    parser.add_argument("--minsig", help="Minimum number of signature use",
-                        type=int, default=50)
+    parser.add_argument("--minsig", help="Minimum number of signature use; "
+                        "a small number like 5 is pretty much the smallest "
+                        "to use in order to filter spurious signatures; may "
+                        "try larger numbers like 10 or 20 and so forth",
+                        type=int, default=5)
+    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
+                        " if this is zero, then the program counts "
+                        "all word tokens in the corpus",
+                        type=int, default=0)
     return parser
 
 
-def load_config(language, corpus, datafolder, filename='config.json',
-                writenew=True):
-    config_path = Path(filename)
-    if not language or not corpus or not datafolder:
-        try:
-            # see if it's there
-            with config_path.open() as config_file:
-                config = json.load(config_file)
-            language = config['language']
-            corpus = config['corpus']
-            datafolder = config['datafolder']
-            writenew = False
-        except (FileNotFoundError, KeyError):
-            language = input('enter language name: ')
-            corpus = input('enter corpus filename: ')
-            datafolder = input('enter data path: ')
-
-    if writenew:
-        config = {'language': language,
-                  'corpus': corpus,
-                  'datafolder': datafolder}
-        with config_path.open('w') as config_file:
-            json.dump(config, config_file)
-
-    return language, corpus, datafolder
-
-
 def create_wordlist(language, filename, datafolder,
-                    minimum_stem_length=None):
+                    minimum_stem_length=None, maxwordtokens=0):
     ngram_path = Path(datafolder, language, 'ngrams')
     infilepath = Path(ngram_path, filename)
-    word_freq_dict = read_word_freq_file(infilepath, minimum_stem_length)
+    word_freq_dict = read_word_freq_file(infilepath,
+                                         minimum_stem_length, maxwordtokens)
 
     wordlist = sorted(word_freq_dict.keys())
     return wordlist, word_freq_dict
 
 
 def main(language, corpus, datafolder,
-         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses):
+         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
+         maxwordtokens):
 
-    short_filename = corpus
+    if maxwordtokens:
+        corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
+    else:
+        corpusName = Path(corpus).stem
 
     # -------------------------------------------------------------------------#
     #       decide suffixing or prefixing
@@ -110,29 +99,30 @@ def main(language, corpus, datafolder,
 
     else:
         FindSuffixesFlag = False  # prefixal
-
-    wordlist, wordFreqDict = create_wordlist(language, corpus, datafolder)
+    wordlist, wordFreqDict = create_wordlist(language, corpus, datafolder,
+                                             maxwordtokens=maxwordtokens)
 
     outfolder = Path(datafolder, language, 'lxa')
 
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
 
-    stemfilename = Path(outfolder, '{}_stems.txt'.format(short_filename))
-
     # TODO -- filenames not yet used in main()
-    outfile_Signatures_name = str(outfolder) + short_filename + "_Signatures.txt"
-    outfile_SigTransforms_name = str(outfolder) + short_filename + "_SigTransforms.txt"
-    outfile_FSA_name = str(outfolder) + short_filename + "_FSA.txt"
-    outfile_FSA_graphics_name = str(outfolder) + short_filename + "_FSA_graphics.png"
+    outfile_Signatures_name = str(outfolder) + corpusName + "_Signatures.txt"
+    outfile_SigTransforms_name = str(outfolder) + corpusName + "_SigTransforms.txt"
+    outfile_FSA_name = str(outfolder) + corpusName + "_FSA.txt"
+    outfile_FSA_graphics_name = str(outfolder) + corpusName + "_FSA_graphics.png"
 
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #   create: BisigToTuple
     #                  (key: tuple of bisig | value: set of (stem, word1, word2)
     #           StemToWords (key: stem | value: set of words)
-    #           StemCounts (key: stem | value: int --- sum of counts 
-    #                                       for each word in StemToWords[stem] )
-    # --------------------------------------------------------------------------#
+    #           SigToStems  (key: tuple of sig | value: set of stems )
+    #           StemToSig   (key: str of stem  | value: tuple of sig )
+    #           WordToSigs  (key: str of word  | value: set of sigs )
+    #           AffixToSigs (key: str of affix | value: set of sigs )
+    # -------------------------------------------------------------------------#
+
     BisigToTuple = MakeBiSignatures(wordlist, FindSuffixesFlag,
                                     MinimumStemLength, MaximumAffixLength)
     print("BisigToTuple ready", flush=True)
@@ -140,20 +130,6 @@ def main(language, corpus, datafolder,
     StemToWords = MakeStemToWords(BisigToTuple, MinimumNumberofSigUses)
     print("StemToWords ready", flush=True)
 
-    StemCounts = MakeStemCounts(StemToWords, wordFreqDict)
-    print('StemCounts ready', flush=True)
-
-    # --------------------------------------------------------------------------#
-    #      output stem file
-    # --------------------------------------------------------------------------#
-    OutputStemFile(stemfilename, StemToWords, StemCounts)
-    print('===> stem file generated:', stemfilename, flush=True)
-
-    # --------------------------------------------------------------------------#
-    #   create: SigToStems  (key: tuple of sig | value: set of stems )
-    #           StemToSig   (key: str of stem  | value: tuple of sig )
-    #           WordToSigs  (key: str of word  | value: set of sigs )
-    # --------------------------------------------------------------------------#
     SigToStems = MakeSigToStems(StemToWords, FindSuffixesFlag,
                                 MaximumAffixLength, MinimumNumberofSigUses)
     print("SigToStems ready", flush=True)
@@ -164,77 +140,80 @@ def main(language, corpus, datafolder,
     WordToSigs = MakeWordToSigs(StemToWords, StemToSig)
     print("WordToSigs ready", flush=True)
 
+    AffixToSigs = MakeAffixToSigs(SigToStems)
+    print("AffixToSigs ready", flush=True)
 
-    # --------------------------------------------------------------------------#
-    #   pickle SigToStems
-    # --------------------------------------------------------------------------#
-    SigToStems_pkl_fname = Path(outfolder, short_filename + "_SigToStems.pkl")
-    with SigToStems_pkl_fname.open('wb') as f:
-        pickle.dump(SigToStems, f)
-    print('===> pickle file generated:', SigToStems_pkl_fname, flush=True)
-
-    #    # read python dict back from the file
-    #    pkl_file = open('myfile.pkl', 'rb')
-    #    mydict2 = pickle.load(pkl_file)
-    #    pkl_file.close()
-
-
-
-
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #   generate graphs for several dicts
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    GenerateGraphFromDict(StemToWords, outfolder, 'StemToWords.gexf')
     #    GenerateGraphFromDict(SigToStems, outfolder, 'SigToStems.gexf')
     #    GenerateGraphFromDict(WordToSigs, outfolder, 'WordToSigs.gexf')
     #    GenerateGraphFromDict(StemToSig, outfolder, 'StemToSig.gexf')
+    # -------------------------------------------------------------------------#
 
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
+    #      output stem file
+    # -------------------------------------------------------------------------#
 
-    nWordsInParadigms = 0
-    SigToStemsSortedList = sorted(SigToStems.items(),
-                                  key=lambda x: len(x[1]), reverse=True)
-    print('nSigs', len(SigToStemsSortedList))
-    for (idx, (sig, stemList)) in enumerate(SigToStemsSortedList):
-        nStems = len(stemList)
-        nWordsInParadigms = nWordsInParadigms + nStems * len(sig)
-    # print(idx, sig)
-    #        print(nStems, end=' ')
-    #        print(sig, len(stemList))
-    #        if idx > 20:
-    #            break
+    stemfilename = Path(outfolder, '{}_StemToWords.txt'.format(corpusName))
+    OutputStemFile(stemfilename, StemToWords, wordFreqDict)
+    print('===> stem file generated:', stemfilename, flush=True)
 
-    print('nWordsInParadigms:', nWordsInParadigms)
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
+    #      output affix file
+    # -------------------------------------------------------------------------#
 
-    # --------------------------------------------------------------------------#
+    affixfilename = Path(outfolder, '{}_AffixToSigs.txt'.format(corpusName))
+#    OutputAffixFile(affixfilename, AffixToSigs)
+    OutputLargeDict(affixfilename, AffixToSigs, howmanyperline=5)
+    print('===> affix file generated:', affixfilename, flush=True)
+
+    # -------------------------------------------------------------------------#
+    #   pickle SigToStems # TODO: probably switching to json
+    # -------------------------------------------------------------------------#
+    #    SigToStems_pkl_fname = Path(outfolder, corpusName + "_SigToStems.pkl")
+    #    with SigToStems_pkl_fname.open('wb') as f:
+    #        pickle.dump(SigToStems, f)
+    #    print('===> pickle file generated:', SigToStems_pkl_fname, flush=True)
+    # -------------------------------------------------------------------------#
+
+    # -------------------------------------------------------------------------#
     #   output SigToStems
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
-    SigToStems_outfilename = Path(outfolder, short_filename + "_SigToStems.txt")
-    with SigToStems_outfilename.open('w') as f:
-        for (idx, (sig, stemList)) in enumerate(SigToStemsSortedList):
-            print(sig, len(stemList), file=f)
+    SigToStems_outfilename = Path(outfolder, corpusName + "_SigToStems.txt")
+    OutputLargeDict(SigToStems_outfilename, SigToStems)
 
-        print(file=f)
-
-        for (sig, stemList) in SigToStemsSortedList:
-            print(sig, len(stemList), file=f)
-            for (idx, stem) in enumerate(sorted(stemList), 1):
-                print(stem, end=' ', file=f)
-                if idx % 10 == 0:
-                    print(file=f)
-            print(file=f)
-            print(file=f)
+    SigToStems_outfilename_json = changeFilenameSuffix(SigToStems_outfilename,
+                                                       ".json")
+    json_pdump(SigToStems, SigToStems_outfilename_json.open("w"),
+               sort_function=lambda x : len(x[1]), reverse=True)
 
     print('===> output file generated:', SigToStems_outfilename, flush=True)
+    print('===> output file generated:', SigToStems_outfilename_json, flush=True)
 
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
+    #   output WordToSigs
+    # -------------------------------------------------------------------------#
+
+    WordToSigs_outfilename = Path(outfolder, corpusName + "_WordToSigs.txt")
+    OutputLargeDict2(WordToSigs_outfilename, WordToSigs)
+
+    WordToSigs_outfilename_json = changeFilenameSuffix(WordToSigs_outfilename,
+                                                       ".json")
+    json_pdump(WordToSigs, WordToSigs_outfilename_json.open("w"),
+               sort_function=lambda x : len(x[1]), reverse=True)
+
+    print('===> output file generated:', WordToSigs_outfilename, flush=True)
+    print('===> output file generated:', WordToSigs_outfilename_json, flush=True)
+
+    # -------------------------------------------------------------------------#
     #   output the most freq word types not in any induced paradigms {the, of..}
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     mostFreqWordsNotInSigs_outfilename = Path(outfolder,
-                                              short_filename +
+                                              corpusName +
                                               "_mostFreqWordsNotInSigs.txt")
 
     with mostFreqWordsNotInSigs_outfilename.open('w') as f:
@@ -249,11 +228,11 @@ def main(language, corpus, datafolder,
     print('===> output file generated:',
           mostFreqWordsNotInSigs_outfilename, flush=True)
 
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #   output the word types in induced paradigms
-    # --------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
-    WordsInSigs_outfilename = Path(outfolder, short_filename + "_WordsInSigs.txt")
+    WordsInSigs_outfilename = Path(outfolder, corpusName + "_WordsInSigs.txt")
 
     with WordsInSigs_outfilename.open('w') as f:
 
@@ -268,8 +247,28 @@ def main(language, corpus, datafolder,
     print('===> output file generated:',
           WordsInSigs_outfilename, flush=True)
 
+    # -------------------------------------------------------------------------#
+    #   output the word types NOT in induced paradigms
+    # -------------------------------------------------------------------------#
 
-# ------------------------------------------------------------------------------#
+    WordsNotInSigs_outfilename = Path(outfolder,
+                                      corpusName + "_WordsNotInSigs.txt")
+
+    with WordsNotInSigs_outfilename.open('w') as f:
+
+        wordFreqInSigListSorted = [(word, freq) for (word, freq) in
+                                   sorted(wordFreqDict.items(),
+                                          key=lambda x: x[1], reverse=True)
+                                   if word not in WordToSigs]
+
+        for (word, freq) in wordFreqInSigListSorted:
+            print(word, freq, file=f)
+
+    print('===> output file generated:',
+          WordsNotInSigs_outfilename, flush=True)
+
+
+# -----------------------------------------------------------------------------#
 
 # TODO: bring the following back later
 
@@ -286,7 +285,7 @@ def to_be_handled():
 
     # July 15, 2014, Jackson Lee
 
-    outfile_Signatures_name_JL = outfolder + short_filename + "_Signatures-JL.txt"
+    outfile_Signatures_name_JL = outfolder + corpusName + "_Signatures-JL.txt"
     Signatures_outfile_JL = open(outfile_Signatures_name_JL, 'w')
 
 
@@ -295,7 +294,7 @@ def to_be_handled():
     #       write log file header | TODO keep this part or rewrite?
     # ------------------------------------------------------------------------------#
 
-    #    outfile_log_name            = outfolder + short_filename + "_log.txt"
+    #    outfile_log_name            = outfolder + corpusName + "_log.txt"
     #    log_file = open(outfile_log_name, "w")
     #    print("Language:", language, file=log_file)
     #    print("Minimum Stem Length:", MinimumStemLength,
@@ -460,7 +459,7 @@ def to_be_handled():
         print("Printed graph", str(loop), "before_merger")
         graph = morphology.createDoublePySubgraph(state1, state2)
         graph.layout(prog='dot')
-        filename = outfolder + short_filename + str(loop) + '_before_merger' + str(state1.index) + "-" + str(
+        filename = outfolder + corpusName + str(loop) + '_before_merger' + str(state1.index) + "-" + str(
             state2.index) + '.png'
         graph.draw(filename)
 
@@ -497,118 +496,6 @@ def to_be_handled():
             state_changed_2.index) + '.png'
         print("Printed graph", str(loop), "after_merger")
         graph.draw(outfile_FSA_graphics_name)
-
-
-        # ------------------------------------------------------------------------------#
-    # ------------------------------------------------------------------------------#
-    #        User inquiries about morphology
-    # ------------------------------------------------------------------------------#
-    # ------------------------------------------------------------------------------#
-
-    # morphology_copy = morphology.MakeCopy()
-
-    # class parseChunk:
-    #    def __init__(self, morph, rString, edge= None):
-    #        self.morph         = morph
-    #        self.edge         = edge
-    #        self.remainingString     = rString
-    #        if (edge):
-    #            self.fromState = self.edge.fromState
-    #            self.toState   = self.edge.toState
-    #        else:
-    #            self.fromState = None
-    #            self.toState = None
-    #    def Copy (self, otherChunk):
-    #        self.morph         = otherChunk.morph
-    #        self.edge         = otherChunk.edge
-    #        self.remainingString     = otherChunk.remainingString
-
-    # initialParseChain = list()
-    # CompletedParses = list()
-    # IncompleteParses = list()
-    # word = ""
-    # while True:
-    #    word = raw_input('Inquiry about a word: ')
-    #    if word == "exit":
-    #        break
-    #    if word == "State":
-    #        while True:
-    #            stateno = raw_input("State number:")
-    #            if stateno == "" or stateno == "exit":
-    #                break
-    #            stateno = int(stateno)    
-    #            for state in morphology.States:
-    #                if state.index == stateno:
-    #                    break    
-    #            state = morphology.States[stateno]
-    #            for edge in state.getOutgoingEdges():
-    #                print "Edge number", edge.index 
-    #                i = 0
-    #                for morph in edge.labels:
-    #                    print "%12s" % morph,
-    #                    i+=1
-    #                    if i%6 == 0: print 
-    #            print "\n\n"        
-    #            continue
-    #    if word == "Edge":
-    #        while True:
-    #            edgeno = raw_input("Edge number:")
-    #            if edgeno == "" or edgeno == "exit":
-    #                break
-    #            edgeno = int(edgeno)
-    #            for edge in morphology.Edges:
-    #                if edge.index == edgeno:
-    #                    break
-    #            print "From state", morphology.Edges[edgeno].fromState.index, "To state", morphology.Edges[edgeno].toState.index
-    #            for edge in morphology.Edges:
-    #                if edge.index == int(edgeno):
-    #                    morphlist = list(edge.labels)
-    #            for i in range(len( morphlist )):
-    #                print "%12s" % morphlist[i],
-    #                if i%6 == 0:
-    #                    print    
-    #            print "\n\n"
-    #            continue
-    #    if word == "graph":
-    #        while True:
-    #            stateno = raw_input("Graph state number:")
-    #            
-    #    del CompletedParses[:]
-    #    del IncompleteParses[:]
-    #    del initialParseChain[:]
-    #    startingParseChunk = parseChunk("", word)
-    #    startingParseChunk.toState = morphology.startState
-
-    #    initialParseChain.append(startingParseChunk)
-    #    IncompleteParses.append(initialParseChain)
-    #    while len(IncompleteParses) > 0 :
-    #        CompletedParses, IncompleteParses = morphology.lparse(CompletedParses, IncompleteParses)
-    #    if len(CompletedParses) == 0: print "no analysis found." 
-    #     
-    #    for parseChain in CompletedParses:
-    #        for thisParseChunk in  parseChain:            
-    #            if (thisParseChunk.edge):                 
-    #                print "\t",thisParseChunk.morph,  
-    #        print 
-    #    print
-
-    #    for parseChain in CompletedParses:
-    #        print "\tStates: ",
-    #        for thisParseChunk in  parseChain:            
-    #            if (thisParseChunk.edge):                 
-    #                print "\t",thisParseChunk.fromState.index, 
-    #        print "\t",thisParseChunk.toState.index      
-    #    print 
-
-    #    for parseChain in CompletedParses:
-    #        print "\tEdges: ",
-    #        for thisParseChunk in  parseChain:            
-    #            if (thisParseChunk.edge):                 
-    #                print "\t",thisParseChunk.edge.index,
-    #        print
-    #    print "\n\n"
-
-
 
     # ---------------------------------------------------------------------------------------------------------------------------#
     # We create a list of words, each word with its signature transform (so DOGS is turned into NULL.s_s, for example)
@@ -651,17 +538,12 @@ if __name__ == "__main__":
     MinimumStemLength = args.minstem
     MaximumAffixLength = args.maxaffix
     MinimumNumberofSigUses = args.minsig
+    maxwordtokens = args.maxwordtokens
 
-    language, corpus, datafolder = load_config(args.language,
-                                               args.corpus, args.datafolder)
-
-    print("language: {}".format(language))
-    print("corpus: {}".format(corpus))
-    print("datafolder: {}".format(datafolder))
-    proceed = input("proceed? [Y/n] ")
-    if proceed and (proceed[0].lower() == "n"):
-        sys.exit()
+    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
+                                                   args.corpus, args.datafolder)
 
     main(language, corpus, datafolder,
-         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses)
+         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
+         maxwordtokens)
 

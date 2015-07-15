@@ -1,5 +1,9 @@
 *.pyc
 .idea
+*.pyw
+*.json
+incremental*
+*~
 
 env
 corpora
