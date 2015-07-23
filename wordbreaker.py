@@ -11,21 +11,35 @@ import argparse
 from pathlib import Path
 
 from latexTable_py3 import MakeLatexTable
-from lxa5lib import (get_language_corpus_datafolder, stdout_list)
+from lxa5lib import (get_language_corpus_datafolder, json_pdump,
+                     changeFilenameSuffix, stdout_list,
+                     load_config_for_command_line_help)
 
 # Jan 6: added precision and recall.
 
 
-def makeArgParser():
+def makeArgParser(configfilename="config.json"):
+
+    language, \
+    corpus, \
+    datafolder, \
+    configtext = load_config_for_command_line_help(configfilename)
+
     parser = argparse.ArgumentParser(
-        description="Word segmentation",
+        description="Word segmentation program.\n\n{}"
+                    .format(configtext),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument("--config", help="configuration filename",
+                        type=str, default=configfilename)
+
     parser.add_argument("--language", help="Language name",
                         type=str, default=None)
     parser.add_argument("--corpus", help="Corpus file to use",
                         type=str, default=None)
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
+
     parser.add_argument("--cycles", help="number of cycles",
                         type=int, default=200)
     parser.add_argument("--candidates", help="number of candidates"
@@ -541,7 +555,7 @@ def PrintList(my_list, outfile):
 
 
 def main(language, corpus, datafolder,
-         numberofcycles, howmanycandidatesperiteration, verboseflag):
+         numberofcycles, candidatesperiteration, verboseflag):
 
     corpusfile = corpus
     datadirectory = Path(datafolder, language)
@@ -572,7 +586,7 @@ def main(language, corpus, datafolder,
     print("#" + str(corpusfile), file=outfile)
     print("#" + str(numberofcycles) + " cycles.", file=outfile)
     print("#" + str(numberoflines) + " lines in the original corpus.", file=outfile)
-    print("#" + str(howmanycandidatesperiteration) + " candidates on each cycle.", file=outfile)
+    print("#" + str(candidatesperiteration) + " candidates on each cycle.", file=outfile)
 
     current_iteration = 0    
     this_lexicon = Lexicon()
@@ -584,7 +598,7 @@ def main(language, corpus, datafolder,
     for current_iteration in range(1, numberofcycles):
         print("\n Iteration number", current_iteration, "out of ", numberofcycles)
         print("\n\n Iteration number", current_iteration, file=outfile)
-        this_lexicon.GenerateCandidates(howmanycandidatesperiteration, outfile,current_iteration)
+        this_lexicon.GenerateCandidates(candidatesperiteration, outfile,current_iteration)
         this_lexicon.ParseCorpus (outfile, current_iteration)
         this_lexicon.RecallPrecision(current_iteration, outfile,total_word_count_in_parse)
         
@@ -602,12 +616,20 @@ if __name__ == "__main__":
     args = makeArgParser().parse_args()
 
     numberofcycles = args.cycles
-    howmanycandidatesperiteration = args.candidates
+    candidatesperiteration = args.candidates
     verboseflag = args.verbose
 
+    description="You are running {}.\n".format(__file__) + \
+                "This program works on word segmentation.\n" + \
+                "numberofcycles = {}\n".format(numberofcycles) + \
+                "candidatesperiteration = {}\n".format(candidatesperiteration) + \
+                "verboseflag = {}\n".format(verboseflag)
+
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                                   args.corpus, args.datafolder)
+                                      args.corpus, args.datafolder, args.config,
+                                      description=description,
+                                      scriptname=__file__)
 
     main(language, corpus, datafolder,
-         numberofcycles, howmanycandidatesperiteration, verboseflag)
+         numberofcycles, candidatesperiteration, verboseflag)
 

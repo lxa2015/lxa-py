@@ -17,7 +17,8 @@ from lxa5_module import (read_word_freq_file, MakeBiSignatures,
                          MakeAffixToSigs, OutputAffixFile)
 
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix)
+                     changeFilenameSuffix, stdout_list,
+                     load_config_for_command_line_help)
 
 #------------------------------------------------------------------------------#
 #        user modified variables
@@ -27,17 +28,28 @@ NumberOfCorrections = 100  # TODO: keep or not?
 
 #------------------------------------------------------------------------------#
 
-def makeArgParser():
+def makeArgParser(configfilename="config.json"):
+
+    language, \
+    corpus, \
+    datafolder, \
+    configtext = load_config_for_command_line_help(configfilename)
+
     parser = argparse.ArgumentParser(
-        description="If neither config.json nor {language, corpus, datafolder} "
-                    "arguments are found, user inputs are prompted.",
+        description="This program computes morphological signatures.\n\n{}"
+                    .format(configtext),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument("--config", help="configuration filename",
+                        type=str, default=configfilename)
+
     parser.add_argument("--language", help="Language name",
                         type=str, default=None)
     parser.add_argument("--corpus", help="Corpus file to use",
                         type=str, default=None)
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
+
     parser.add_argument("--minstem", help="Minimum stem length; "
                         "usually from 2 to 5, where a smaller number means "
                         "you can find shorter stems although the program "
@@ -542,8 +554,17 @@ if __name__ == "__main__":
     MinimumNumberofSigUses = args.minsig
     maxwordtokens = args.maxwordtokens
 
+    description="You are running {}.\n".format(__file__) + \
+                "This program computes morphological signatures.\n" + \
+                "MinimumStemLength = {}\n".format(MinimumStemLength) + \
+                "MaximumAffixLength = {}\n".format(MaximumAffixLength) + \
+                "MinimumNumberofSigUses = {}\n".format(MinimumNumberofSigUses) + \
+                "maxwordtokens".format(maxwordtokens)
+
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                                   args.corpus, args.datafolder)
+                                      args.corpus, args.datafolder, args.config,
+                                      description=description,
+                                      scriptname=__file__)
 
     main(language, corpus, datafolder,
          MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,

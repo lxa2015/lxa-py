@@ -195,7 +195,8 @@ if __name__ == "__main__":
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                       args.corpus, args.datafolder, args.config,
-                                      description=description)
+                                      description=description,
+                                      scriptname=__file__)
 
     main(language, corpus, datafolder,
          maxwordtypes, nNeighbors, nEigenvectors, _pickle)

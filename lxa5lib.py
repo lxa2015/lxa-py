@@ -54,13 +54,18 @@ def proceed_or_not():
 
 def get_language_corpus_datafolder(_language, _corpus, _datafolder,
                                    configfilename="config.json",
-                                   description=""):
+                                   description="", scriptname="<file>"):
 
     newconfig = False # need to write new config file or not
 
     print("\n===============================================================\n")
     print(description)
     print()
+
+    print("If this program has parameters (shown above) and if any of them\n"
+          "are undesirable, terminate the program now and run the program\n"
+          "again by explicitly providing the command line arguments.\n"
+          "For details, run \"python3 {} -h\"\n".format(scriptname))
 
     # -------------------------------------------------------------------------#
     # check current directory and config filename. Print them to stdout

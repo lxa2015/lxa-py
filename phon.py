@@ -6,7 +6,8 @@ from pathlib import Path
 
 import ngrams
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix, stdout_list)
+                     changeFilenameSuffix, stdout_list,
+                     load_config_for_command_line_help)
 
 #------------------------------------------------------------------------------#
 #
@@ -18,10 +19,22 @@ from lxa5lib import (get_language_corpus_datafolder, json_pdump,
 #
 #------------------------------------------------------------------------------#
 
-def makeArgParser():
+def makeArgParser(configfilename="config.json"):
+
+    language, \
+    corpus, \
+    datafolder, \
+    configtext = load_config_for_command_line_help(configfilename)
+
     parser = argparse.ArgumentParser(
-        description="Extracting phone/letter ngrams from a wordlist.",
+        description="Extracting phone/letter ngrams from a wordlist; also other"
+                    "phonology-related stuff\n\n{}"
+                    .format(configtext),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument("--config", help="configuration filename",
+                        type=str, default=configfilename)
+
     parser.add_argument("--language", help="Language name",
                         type=str, default=None)
     parser.add_argument("--corpus", help="Corpus file to use",
@@ -157,8 +170,13 @@ if __name__ == "__main__":
 
     args = makeArgParser().parse_args()
 
+    description="You are running {}.\n".format(__file__) + \
+                "This program works on the phonology of the corpus text.\n"
+
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                                   args.corpus, args.datafolder)
+                                      args.corpus, args.datafolder, args.config,
+                                      description=description,
+                                      scriptname=__file__)
 
     main(language, corpus, datafolder)
 
