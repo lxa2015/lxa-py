@@ -1,9 +1,10 @@
-from collections import Counter
+from collections import Counter, defaultdict
 import itertools
 import math
 import os
 from pathlib import Path
 import time
+from pprint import pprint
 
 import networkx as nx
 
@@ -20,26 +21,26 @@ import ngrams
      StemCounts is a map. Its keys are words.     Its values are corpus counts of stems.
 """ #---------------------------------------------------------------------------------------------------------------------------------------------#
 
-def OutputAffixFile(affixfilename, AffixToSigs):
-    AffixToSigsSortedList = [affix_sigSet for affix_sigSet in
-                             sorted(AffixToSigs.items(),
-                                    key=lambda x: len(x[1]), reverse=True)]
+def OutputAffixFile(affixfilename, affix_to_sigs):
+    affix_to_sig_sorted =  sorted(affix_to_sigs.items(),
+                                    key=lambda x: (len(x[1])),
+                                    reverse=True)
 
     with affixfilename.open('w') as f:
-        for affix, sigSet in AffixToSigsSortedList:
+        for affix, sigSet in affix_to_sig_sorted:
+            sorted_sigset = sorted(str(x) for x in sigSet)
             print(affix, len(sigSet),
-                  ' '.join(sorted([str(x) for x in sigSet])), file=f)
+                  ' '.join(sorted_sigset),
+                  file=f)
 
 def MakeAffixToSigs(SigToStems):
-    AffixToSigs = dict()
+    affix_to_sigs = defaultdict(set)
 
     for sig in SigToStems.keys():
         for affix in sig:
-            if affix not in AffixToSigs:
-                AffixToSigs[affix] = set()
-            AffixToSigs[affix].add(sig)
+            affix_to_sigs[affix].add(sig)
 
-    return AffixToSigs
+    return affix_to_sigs
 
 # def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
 #     with outfilename.open('w') as f:
