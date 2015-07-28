@@ -41,26 +41,29 @@ def MakeAffixToSigs(SigToStems):
 
     return AffixToSigs
 
-def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
-    with outfilename.open('w') as f:
-        inputdictSortedList = sorted(inputdict.items(),
-                                      key=lambda x: len(x[1]), reverse=True)
+# def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
+#     with outfilename.open('w') as f:
+#         inputdictSortedList = sorted(inputdict.items(),
+#                                       key=lambda x: len(x[1]), reverse=True)
+#
+#         # this function is originally used for outputting SigToStems
+#         # so the variable names carry over here
+#         for (idx, (sig, stemList)) in enumerate(inputdictSortedList):
+#             print(sig, len(stemList), file=f)
+#         print(file=f)
+#
+#         for (sig, stemList) in inputdictSortedList:
+#             print(sig, len(stemList), file=f)
+#             for (idx, stem) in enumerate(sorted(stemList), 1):
+#                 print(stem, end=' ', file=f)
+#                 if idx % howmanyperline == 0:
+#                     print(file=f)
+#             print(file=f)
+#             print(file=f)
 
-        # this function is originally used for outputting SigToStems
-        # so the variable names carry over here
-        for (idx, (sig, stemList)) in enumerate(inputdictSortedList):
-            print(sig, len(stemList), file=f)
-        print(file=f)
+"""John created a slight variant of preceding function, but for WordToSigs;
+left the old one untouched since I didn't know what other functions called it"""
 
-        for (sig, stemList) in inputdictSortedList:
-            print(sig, len(stemList), file=f)
-            for (idx, stem) in enumerate(sorted(stemList), 1):
-                print(stem, end=' ', file=f)
-                if idx % howmanyperline == 0:
-                    print(file=f)
-            print(file=f)
-            print(file=f)
-# John created a slight variant of preceding function, but for WordToSigs; left the old one untouched since I didn't know what other functions called it.
 def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
     with outfilename.open('w') as f:
         inputdictSortedList = sorted(inputdict.items(),
