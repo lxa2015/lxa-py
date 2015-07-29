@@ -170,7 +170,9 @@ def main(language, corpus, datafolder,
 
     stemfilename = Path(outfolder, '{}_StemToWords.txt'.format(corpusName))
     #OutputStemFile(stemfilename, StemToWords, wordFreqDict)
-    OutputLargeDict2(stemfilename, StemToWords)
+#    OutputLargeDict2(stemfilename, StemToWords)
+    OutputLargeDict(stemfilename, StemToWords,
+                    min_cell_width=25, howmanyperline=5)
 
     print('===> stem file generated:', stemfilename, flush=True)
 
@@ -180,7 +182,8 @@ def main(language, corpus, datafolder,
 
     affixfilename = Path(outfolder, '{}_AffixToSigs.txt'.format(corpusName))
 #    OutputAffixFile(affixfilename, AffixToSigs)
-    OutputLargeDict(affixfilename, AffixToSigs, howmanyperline=5)
+    OutputLargeDict(affixfilename, AffixToSigs, min_cell_width=25,
+                    howmanyperline=5, SignatureValues=True)
     print('===> affix file generated:', affixfilename, flush=True)
 
     # -------------------------------------------------------------------------#
@@ -197,7 +200,8 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     SigToStems_outfilename = Path(outfolder, corpusName + "_SigToStems.txt")
-    OutputLargeDict(SigToStems_outfilename, SigToStems)
+    OutputLargeDict(SigToStems_outfilename, SigToStems,
+                    howmanyperline=5, SignatureKeys=True)
 
     SigToStems_outfilename_json = changeFilenameSuffix(SigToStems_outfilename,
                                                        ".json")
@@ -212,7 +216,9 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     WordToSigs_outfilename = Path(outfolder, corpusName + "_WordToSigs.txt")
-    OutputLargeDict2(WordToSigs_outfilename, WordToSigs,SignatureFlag = True)
+    OutputLargeDict(WordToSigs_outfilename, WordToSigs,
+                    min_cell_width=25, SignatureValues=True)
+#    OutputLargeDict2(WordToSigs_outfilename, WordToSigs,SignatureFlag = True)
 
     WordToSigs_outfilename_json = changeFilenameSuffix(WordToSigs_outfilename,
                                                        ".json")

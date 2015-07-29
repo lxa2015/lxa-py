@@ -1,11 +1,12 @@
 from collections import Counter, defaultdict
-import itertools
+from itertools import combinations, zip_longest
 import math
 import os
 from pathlib import Path
 import time
 from pprint import pprint
 
+import numpy as np
 import networkx as nx
 
 from lxa5lib import read_corpus_file
@@ -33,6 +34,35 @@ def OutputAffixFile(affixfilename, affix_to_sigs):
             print(affix, len(sigSet),
                   ' '.join(sorted_sigset),
                   file=f)
+
+
+def sorted_alphabetized(input_object, key=lambda x: x, reverse=False):
+
+    # input_object could be one of the following:
+    # -- a list of tuples, where each tuple is (item, integer count)
+    # -- a dict (a Counter or "normal" dict) where key is item and value is integer count
+
+    if isinstance(input_object, dict):
+        sorted_list = sorted(input_object.items(), key=key, reverse=reverse)
+    else:
+        sorted_list = sorted(input_object, key=key, reverse=reverse)
+
+    new_sorted_list = list()
+
+    current_count = len(sorted_list[0][1])
+    item_value_sublist = [sorted_list[0]]
+
+    for item, v in sorted_list[1:]:
+        if len(v) == current_count:
+            item_value_sublist.append((item, v))
+        else:
+            item_value_sublist = sorted(item_value_sublist)
+            new_sorted_list += item_value_sublist
+
+            item_value_sublist = list()
+            current_count = len(v)
+
+    return new_sorted_list
 
 
 def MakeAffixToSigs(sig_to_stems):
@@ -69,24 +99,76 @@ def MakeAffixToSigs(sig_to_stems):
 left the old one untouched since I didn't know what other functions called it"""
 
 
-def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
-    with outfilename.open('w') as f:
-        inputdictSortedList = sorted(inputdict.items(),
-                                     key=lambda x: len(x[1]), reverse=True)
+def OutputLargeDict(outfilename, inputdict,
+                    howmanyperline=10, min_cell_width=0,
+                    SignatureKeys=False, SignatureValues=False):
 
-        # this function is originally used for outputting SigToStems
-        # so the variable names carry over here
-        for (idx, (sig, stemList)) in enumerate(inputdictSortedList):
-            print(sig, len(stemList), file=f)
+    # if SignatureKeys is True, each key in inputdict is a tuple of strings
+    # if SignatureKeys is False, each key in inputdict is a string
+
+    # if SignatureValues is True, each value in inputdict is a set/list of tuples of strings
+    # if SignatureValues is False, each value in inputdict is a set/list of strings
+
+    inputdictSortedList = sorted_alphabetized(inputdict.items(),
+                                              key=lambda x: len(x[1]), reverse=True)
+
+    nItems = len(inputdictSortedList)
+
+    if SignatureKeys:
+        input_keys = ['-'.join(k) for k,v in inputdictSortedList]
+    else:
+        input_keys = [k for k,v in inputdictSortedList]
+
+    if SignatureValues:
+        input_values = [sorted(['-'.join(x) for x in v])
+                        for k,v in inputdictSortedList]
+    else:
+        input_values = [sorted(v) for k,v in inputdictSortedList]
+
+    max_key_length = max([len(x) for x in input_keys])
+#    input_values_transposed = zip_longest(*input_values, fillvalue="")
+
+#    max_cell_width_list = [max([len(item) for item in str_list])
+#                           for str_list in input_values_transposed]
+
+    with outfilename.open('w') as f:
+        for i in range(nItems):
+            print("{} {}".format(input_keys[i].ljust(max_key_length),
+                                 len(input_values[i])), file=f)
         print(file=f)
 
-        for (sig, stemList) in inputdictSortedList:
-            print(sig, len(stemList), file=f)
-            for (idx, stem) in enumerate(sorted(stemList), 1):
-                print(stem, end=' ', file=f)
-                if idx % howmanyperline == 0:
-                    print(file=f)
-            print(file=f)
+        for i in range(nItems):
+            print("{} {}".format(input_keys[i].ljust(max_key_length),
+                                 len(input_values[i])), file=f)
+
+            row = input_values[i]
+            output_list = list()
+            sublist = list()
+
+            for j, item in enumerate(row, 1):
+                sublist.append(item)
+                if j % howmanyperline == 0:
+                    output_list.append(sublist)
+                    sublist = list()
+
+            if sublist:
+                output_list.append(sublist)
+
+            output_list_transposed = zip_longest(*output_list, fillvalue="")
+
+            cell_width_list = [max([len(item) for item in str_list])
+                               for str_list in output_list_transposed]
+
+            if min_cell_width:
+                for j in range(len(cell_width_list)):
+                    if min_cell_width > cell_width_list[j]:
+                        cell_width_list[j] = min_cell_width
+
+            for item_list in output_list:
+                for j, item in enumerate(item_list):
+                    print(item.ljust(cell_width_list[j]), end=" ", file=f)
+                print(file=f)
+
             print(file=f)
 
 
@@ -1690,7 +1772,7 @@ def MakeBiSignatures(wordlist, FindSuffixesFlag, MinimumStemLength, MaximumAffix
             wordlist_forAnalysisNow = list(subwordlist)
             subwordlist = [word2]
 
-        for (word1, word2) in itertools.combinations(wordlist_forAnalysisNow, 2):
+        for (word1, word2) in combinations(wordlist_forAnalysisNow, 2):
 
             stem = maximalcommonprefix(word1, word2)
             stemlen = len(stem)
