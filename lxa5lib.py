@@ -324,43 +324,6 @@ def sorted_alphabetized(input_object, key=lambda x: x, reverse=False):
 
     return new_sorted_list
 
-    #====================================================================
-
-    # input_object could be one of the following:
-    # -- a list of 2-tuples
-    # -- a dict
-
-#    if isinstance(input_object, dict):
-#        sorted_list = sorted(input_object.items(), key=key, reverse=reverse)
-#    else:
-#        sorted_list = sorted(input_object, key=key, reverse=reverse)
-
-#    key_list, value_list = zip(*sorted_list)
-#    key_list = list(key_list)
-#    value_list = list(value_list)
-
-#    sortkey_list = [key(key_value_tuple) for key_value_tuple in sorted_list]
-
-#    new_sorted_list = list()
-
-#    current_sortkey = sortkey_list[0]
-#    item_value_sublist = [sorted_list[0]]
-
-#    for item, v, sortkey in zip(key_list[1:], value_list[1:], sortkey_list[1:]):
-#        if sortkey == current_sortkey:
-#            item_value_sublist.append((item, v))
-#        else:
-#            item_value_sublist = sorted(item_value_sublist)
-#            new_sorted_list += item_value_sublist
-
-#            item_value_sublist = list()
-#            current_sortkey = sortkey
-
-#    if item_value_sublist:
-#        new_sorted_list += item_value_sublist
-
-#    return new_sorted_list
-
 
 def OutputLargeDict(outfilename, inputdict,
                     key=lambda x:x, summary=True, reverse=False,
