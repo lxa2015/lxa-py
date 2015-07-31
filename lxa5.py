@@ -11,13 +11,13 @@ import time
 from pathlib import Path
 
 from lxa5_module import (read_word_freq_file, MakeBiSignatures,
-                         MakeStemToWords, OutputLargeDict, OutputLargeDict2,
-                         OutputStemFile, MakeSigToStems,
+                         MakeStemToWords,
+                         MakeSigToStems, MakeAffixToSigs,
                          MakeStemToSig, MakeWordToSigs,
-                         MakeAffixToSigs, OutputAffixFile)
+                         MakeWordToSigtransforms)
 
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix, stdout_list,
+                     changeFilenameSuffix, stdout_list, OutputLargeDict,
                      load_config_for_command_line_help)
 
 #------------------------------------------------------------------------------#
@@ -152,6 +152,9 @@ def main(language, corpus, datafolder,
     WordToSigs = MakeWordToSigs(StemToWords, StemToSig)
     print("WordToSigs ready", flush=True)
 
+    WordToSigtransforms = MakeWordToSigtransforms(WordToSigs)
+    print("WordToSigtransforms ready", flush=True)
+
     AffixToSigs = MakeAffixToSigs(SigToStems)
     print("AffixToSigs ready", flush=True)
 
@@ -169,9 +172,8 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     stemfilename = Path(outfolder, '{}_StemToWords.txt'.format(corpusName))
-    #OutputStemFile(stemfilename, StemToWords, wordFreqDict)
-#    OutputLargeDict2(stemfilename, StemToWords)
-    OutputLargeDict(stemfilename, StemToWords,
+    OutputLargeDict(stemfilename, StemToWords, key=lambda x: len(x[1]),
+                    reverse=True, summary=True,
                     min_cell_width=25, howmanyperline=5)
 
     print('===> stem file generated:', stemfilename, flush=True)
@@ -181,8 +183,8 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     affixfilename = Path(outfolder, '{}_AffixToSigs.txt'.format(corpusName))
-#    OutputAffixFile(affixfilename, AffixToSigs)
     OutputLargeDict(affixfilename, AffixToSigs, min_cell_width=25,
+                    key=lambda x: len(x[1]), reverse=True,
                     howmanyperline=5, SignatureValues=True)
     print('===> affix file generated:', affixfilename, flush=True)
 
@@ -200,13 +202,14 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     SigToStems_outfilename = Path(outfolder, corpusName + "_SigToStems.txt")
-    OutputLargeDict(SigToStems_outfilename, SigToStems,
+    OutputLargeDict(SigToStems_outfilename, SigToStems, key=lambda x: len(x[1]),
+                    reverse=True,
                     howmanyperline=5, SignatureKeys=True)
 
     SigToStems_outfilename_json = changeFilenameSuffix(SigToStems_outfilename,
                                                        ".json")
     json_pdump(SigToStems, SigToStems_outfilename_json.open("w"),
-               sort_function=lambda x : len(x[1]), reverse=True)
+               key=lambda x : len(x[1]), reverse=True)
 
     print('===> output file generated:', SigToStems_outfilename, flush=True)
     print('===> output file generated:', SigToStems_outfilename_json, flush=True)
@@ -216,17 +219,37 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     WordToSigs_outfilename = Path(outfolder, corpusName + "_WordToSigs.txt")
-    OutputLargeDict(WordToSigs_outfilename, WordToSigs,
+    OutputLargeDict(WordToSigs_outfilename, WordToSigs, key=lambda x: len(x[1]),
+                    reverse=True,
                     min_cell_width=25, SignatureValues=True)
-#    OutputLargeDict2(WordToSigs_outfilename, WordToSigs,SignatureFlag = True)
 
     WordToSigs_outfilename_json = changeFilenameSuffix(WordToSigs_outfilename,
                                                        ".json")
     json_pdump(WordToSigs, WordToSigs_outfilename_json.open("w"),
-               sort_function=lambda x : len(x[1]), reverse=True)
+               key=lambda x : len(x[1]), reverse=True)
 
     print('===> output file generated:', WordToSigs_outfilename, flush=True)
     print('===> output file generated:', WordToSigs_outfilename_json, flush=True)
+
+    # -------------------------------------------------------------------------#
+    #   output WordToSigtransforms
+    # -------------------------------------------------------------------------#
+
+    WordToSigtransforms_outfilename = Path(outfolder,
+                                        corpusName + "_WordToSigtransforms.txt")
+    OutputLargeDict(WordToSigtransforms_outfilename, WordToSigtransforms,
+                    min_cell_width=25, sigtransforms=True,
+                    key=lambda x: len(x[1]), reverse=True)
+    print('===> output file generated:',
+          WordToSigtransforms_outfilename, flush=True)
+
+    WordToSigtransforms_outfilename_json = changeFilenameSuffix(
+                                  WordToSigtransforms_outfilename, ".json")
+    json_pdump(WordToSigtransforms,
+               WordToSigtransforms_outfilename_json.open("w"),
+               key=lambda x : len(x[1]), reverse=True)
+    print('===> output file generated:',
+          WordToSigtransforms_outfilename_json, flush=True)
 
     # -------------------------------------------------------------------------#
     #   output the most freq word types not in any induced paradigms {the, of..}
@@ -565,7 +588,7 @@ if __name__ == "__main__":
                 "MinimumStemLength = {}\n".format(MinimumStemLength) + \
                 "MaximumAffixLength = {}\n".format(MaximumAffixLength) + \
                 "MinimumNumberofSigUses = {}\n".format(MinimumNumberofSigUses) + \
-                "maxwordtokens".format(maxwordtokens)
+                "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                       args.corpus, args.datafolder, args.config,

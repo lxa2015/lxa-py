@@ -1,5 +1,5 @@
 from collections import Counter, defaultdict
-from itertools import combinations, zip_longest
+from itertools import combinations
 import math
 import os
 from pathlib import Path
@@ -9,7 +9,7 @@ from pprint import pprint
 import numpy as np
 import networkx as nx
 
-from lxa5lib import read_corpus_file
+from lxa5lib import (read_corpus_file, sorted_alphabetized, OutputLargeDict)
 import ngrams
 # from fsm import State, Transducer, get_graph
 
@@ -23,48 +23,6 @@ import ngrams
 """  # ---------------------------------------------------------------------------------------------------------------------------------------------#
 
 
-def OutputAffixFile(affixfilename, affix_to_sigs):
-    affix_to_sig_sorted = sorted(affix_to_sigs.items(),
-                                 key=lambda x: (len(x[1])),
-                                 reverse=True)
-
-    with affixfilename.open('w') as f:
-        for affix, sigSet in affix_to_sig_sorted:
-            sorted_sigset = sorted(str(x) for x in sigSet)
-            print(affix, len(sigSet),
-                  ' '.join(sorted_sigset),
-                  file=f)
-
-
-def sorted_alphabetized(input_object, key=lambda x: x, reverse=False):
-
-    # input_object could be one of the following:
-    # -- a list of tuples, where each tuple is (item, integer count)
-    # -- a dict (a Counter or "normal" dict) where key is item and value is integer count
-
-    if isinstance(input_object, dict):
-        sorted_list = sorted(input_object.items(), key=key, reverse=reverse)
-    else:
-        sorted_list = sorted(input_object, key=key, reverse=reverse)
-
-    new_sorted_list = list()
-
-    current_count = len(sorted_list[0][1])
-    item_value_sublist = [sorted_list[0]]
-
-    for item, v in sorted_list[1:]:
-        if len(v) == current_count:
-            item_value_sublist.append((item, v))
-        else:
-            item_value_sublist = sorted(item_value_sublist)
-            new_sorted_list += item_value_sublist
-
-            item_value_sublist = list()
-            current_count = len(v)
-
-    return new_sorted_list
-
-
 def MakeAffixToSigs(sig_to_stems):
     affix_to_sigs = defaultdict(set)
 
@@ -73,175 +31,6 @@ def MakeAffixToSigs(sig_to_stems):
             affix_to_sigs[affix].add(sig)
 
     return affix_to_sigs
-
-
-# def OutputLargeDict(outfilename, inputdict, howmanyperline=10):
-#     with outfilename.open('w') as f:
-#         inputdictSortedList = sorted(inputdict.items(),
-#                                       key=lambda x: len(x[1]), reverse=True)
-#
-#         # this function is originally used for outputting SigToStems
-#         # so the variable names carry over here
-#         for (idx, (sig, stemList)) in enumerate(inputdictSortedList):
-#             print(sig, len(stemList), file=f)
-#         print(file=f)
-#
-#         for (sig, stemList) in inputdictSortedList:
-#             print(sig, len(stemList), file=f)
-#             for (idx, stem) in enumerate(sorted(stemList), 1):
-#                 print(stem, end=' ', file=f)
-#                 if idx % howmanyperline == 0:
-#                     print(file=f)
-#             print(file=f)
-#             print(file=f)
-
-"""John created a slight variant of preceding function, but for WordToSigs;
-left the old one untouched since I didn't know what other functions called it"""
-
-
-def OutputLargeDict(outfilename, inputdict,
-                    howmanyperline=10, min_cell_width=0,
-                    SignatureKeys=False, SignatureValues=False):
-
-    # if SignatureKeys is True, each key in inputdict is a tuple of strings
-    # if SignatureKeys is False, each key in inputdict is a string
-
-    # if SignatureValues is True, each value in inputdict is a set/list of tuples of strings
-    # if SignatureValues is False, each value in inputdict is a set/list of strings
-
-    inputdictSortedList = sorted_alphabetized(inputdict.items(),
-                                              key=lambda x: len(x[1]), reverse=True)
-
-    nItems = len(inputdictSortedList)
-
-    if SignatureKeys:
-        input_keys = ['-'.join(k) for k,v in inputdictSortedList]
-    else:
-        input_keys = [k for k,v in inputdictSortedList]
-
-    if SignatureValues:
-        input_values = [sorted(['-'.join(x) for x in v])
-                        for k,v in inputdictSortedList]
-    else:
-        input_values = [sorted(v) for k,v in inputdictSortedList]
-
-    max_key_length = max([len(x) for x in input_keys])
-#    input_values_transposed = zip_longest(*input_values, fillvalue="")
-
-#    max_cell_width_list = [max([len(item) for item in str_list])
-#                           for str_list in input_values_transposed]
-
-    with outfilename.open('w') as f:
-        for i in range(nItems):
-            print("{} {}".format(input_keys[i].ljust(max_key_length),
-                                 len(input_values[i])), file=f)
-        print(file=f)
-
-        for i in range(nItems):
-            print("{} {}".format(input_keys[i].ljust(max_key_length),
-                                 len(input_values[i])), file=f)
-
-            row = input_values[i]
-            output_list = list()
-            sublist = list()
-
-            for j, item in enumerate(row, 1):
-                sublist.append(item)
-                if j % howmanyperline == 0:
-                    output_list.append(sublist)
-                    sublist = list()
-
-            if sublist:
-                output_list.append(sublist)
-
-            output_list_transposed = zip_longest(*output_list, fillvalue="")
-
-            cell_width_list = [max([len(item) for item in str_list])
-                               for str_list in output_list_transposed]
-
-            if min_cell_width:
-                for j in range(len(cell_width_list)):
-                    if min_cell_width > cell_width_list[j]:
-                        cell_width_list[j] = min_cell_width
-
-            for item_list in output_list:
-                for j, item in enumerate(item_list):
-                    print(item.ljust(cell_width_list[j]), end=" ", file=f)
-                print(file=f)
-
-            print(file=f)
-
-
-def OutputLargeDict2(outfilename, inputdict, SignatureFlag=True):
-    if SignatureFlag:
-        punctuation = "-"
-    else:
-        punctuation = ""
-
-    items_sorted_list = sorted(inputdict.keys())
-    MaxStemLength = 0
-    MaxLength = 0
-    MaxColumnWidth = {}
-
-    # Find out the maximum number of sigs for each stem
-    for stem in items_sorted_list:
-
-        if len(inputdict[stem]) > MaxLength:
-            MaxLength = len(inputdict[stem])
-        if len(stem) > MaxStemLength:
-            MaxStemLength = len(stem)
-
-    MaxStemLength += 1
-
-    # Create a dict for each column's width
-    for length in range(MaxLength + 1):
-        MaxColumnWidth[length] = 0
-
-    # a list of lines to be written to a file later
-    these_lines = []
-
-    # Find the longest entry in each column
-    for stem in items_sorted_list:
-        these_items = inputdict[stem]
-        for signo in range(len(these_items)):
-            this_item = these_items[signo]
-
-            if SignatureFlag:
-                if len(punctuation.join(this_item)) > MaxColumnWidth[signo]:
-                    MaxColumnWidth[signo] = len(punctuation.join(this_item))
-            else:
-                if len(this_item) > MaxColumnWidth[signo]:
-                    MaxColumnWidth[signo] = len(punctuation.join(this_item))
-
-        # find the longest entry in each column
-
-        for stem in items_sorted_list:
-            these_items = inputdict[stem]
-
-            this_line = []
-            this_line.append(stem + " " * (MaxStemLength - len(stem)))
-
-            for signo in range(len(these_items)):
-                this_item = these_items[signo]
-
-                if SignatureFlag:
-                    this_line.append(punctuation.join(this_item)
-                                 + " " * (MaxColumnWidth[signo] + 1 - len(this_item)))
-                else:
-                    this_line.append(this_item
-                                     + " " * (MaxColumnWidth[signo] + 1 - len(this_item)))
-
-            these_lines.append(''.join(this_line))
-
-    with outfilename.open('w') as file:
-        for this_line in these_lines:
-            print(this_line, file=file)
-
-
-def OutputSignatureFile(SigToStems, outfile_signatures_fname, sigSortedList):
-    with open(outfile_signatures_fname, 'w') as f:
-        for sig in sigSortedList:
-            print(sig, len(stemList), ' '.join(stemList), file=f)
 
 
 def read_word_freq_file(infilename: Path,
@@ -264,7 +53,7 @@ def read_word_freq_file(infilename: Path,
     word_freqs = read_corpus_file(infilename, casefold=casefold)
     return word_freqs
 
-
+# currently not used?
 def list_to_string(mylist):
     outstring = ""
     if mylist == None:
@@ -1687,6 +1476,7 @@ def find_N_highest_weight_affix(wordlist, FindSuffixesFlag):
 
 # ----------------------------------------------------------------------------------------------------------------------------#
 
+# currently not used
 def MakeStemCounts(StemToWord, wordFreqDict):
     #   StemCounts (key: stem | value: int --- sum of counts 
     #                             for each word in StemToWords[stem] )
@@ -1717,7 +1507,7 @@ def MakeStemToWords(BisigToTuple, MinimumNumberofSigUses):
         StemToWord[stem] = thislist
     return StemToWord
 
-
+# currently not used
 def OutputStemFile(stemfilename: Path, StemToWord, wordFreqDict):
     StemCounts = MakeStemCounts(StemToWord, wordFreqDict)
 
@@ -1744,10 +1534,6 @@ def MakeBiSignatures(wordlist, FindSuffixesFlag, MinimumStemLength, MaximumAffix
 
     print('nWords', nWords)
     print('FindSuffixesFlag', FindSuffixesFlag)
-
-    #########################################################
-    # Jackson's version
-
 
     # subwordlist stores words in wordlist whose first k letters
     #   are the same (k = MinimumStemLength)
@@ -1809,7 +1595,7 @@ def MakeBiSignatures(wordlist, FindSuffixesFlag, MinimumStemLength, MaximumAffix
 
     return BisigToTuple
 
-
+# currently not used
 # ------------------------------------------------------------------------------#
 def MakeSignatures(StemToWord, FindSuffixesFlag, MaximumAffixLength,
                    MinimumNumberofSigUses, NoAffixLengthRestriction=False):
@@ -1886,6 +1672,42 @@ def MakeWordToSigs(StemToWords, StemToSig):
 
     return WordToSigs
 
+
+# ----------------------------------------------------------------------------------------------------------------------------#
+
+def MakeWordToSigtransforms(WordToSigs, FindSuffixesFlag=True):
+    if FindSuffixesFlag:
+        def check_affix(word, affix):
+            if affix == "NULL":
+                affix = ""
+            if word.endswith(affix):
+                return True
+            else:
+                return False
+    else:
+        def check_affix(word, affix):
+            if affix == "NULL":
+                affix = ""
+            if word.startswith(affix):
+                return True
+            else:
+                return False
+
+    WordToSigtransforms = dict()
+
+    for word in WordToSigs.keys():
+        sigs = WordToSigs[word]
+        sigtransforms = set()
+
+        for sig in sigs:
+            for affix in sig:
+                if check_affix(word, affix):
+                    sigtransforms.add((sig, affix))
+                    break
+
+        WordToSigtransforms[word] = sigtransforms
+
+    return WordToSigtransforms
 
 # ----------------------------------------------------------------------------------------------------------------------------#
 

@@ -7,6 +7,7 @@ from pathlib import Path
 from distutils.util import strtobool
 from collections import OrderedDict
 from pprint import pprint
+from itertools import zip_longest
 
 
 #------------------------------------------------------------------------------#
@@ -83,9 +84,6 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
 
     print("Configuration filename:\n{} {}\n".format(configfilename, configtext))
 
-
-    # -------------------------------------------------------------------------#
-
     # -------------------------------------------------------------------------#
     # The following 3 chunks of code are meant to determine the values of
     # language, corpus, and datafolder.
@@ -161,9 +159,6 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
         datafolder = input('Enter datafolder relative path: ')
         newconfig = True
 
-
-  
-
     # -------------------------------------------------------------------------#
     # write the configuration file
 
@@ -174,8 +169,6 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
         with config_path.open('w') as config_file:
             json.dump(config, config_file)
             print('New configuration file \"{}\" written.'.format(config_path))
-
-    # -------------------------------------------------------------------------#
 
     # -------------------------------------------------------------------------#
     # print to stdout the latest info for language, corpus, and datafolder
@@ -202,8 +195,6 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
           "explicitly providing the command line arguments.\n")
 
     proceed_or_not()
-
-    # -------------------------------------------------------------------------#
 
     # -------------------------------------------------------------------------#
     # make sure the expected corpus file exists. If not, exit the program.
@@ -275,16 +266,13 @@ def load_config(language, corpus, datafolder, filename='config.json',
 
 
 def json_pdump(inputdict, outfile,
-               sort_function=lambda x:x, reverse=False,
+               key=lambda x:x, reverse=False,
                ensure_ascii=False,
                indent=4, separators=(',', ': ')):
     "json pretty dump"
 
-    if not hasattr(sort_function, "__call__"):
-        raise Exception("invalid sort function")
-
-    outputdict = OrderedDict(sorted(inputdict.items(),
-                                    key=sort_function, reverse=reverse))
+    outputdict = OrderedDict(sorted_alphabetized(inputdict.items(),
+                                key=key, reverse=reverse))
 
     # dumping could be tricky, as keys and values can potentially be of any
     # basic and non-basic data types.
@@ -308,4 +296,186 @@ def stdout_list(header, *args):
     for x in args:
         print(x, flush=True)
 
+
+def sorted_alphabetized(input_object, key=lambda x: x, reverse=False):
+
+    # input_object could be one of the following:
+    # -- a list of 2-tuples
+    # -- a dict
+
+    if isinstance(input_object, dict):
+        sorted_list = sorted(input_object.items(), key=key, reverse=reverse)
+    else:
+        sorted_list = sorted(input_object, key=key, reverse=reverse)
+
+    key_list, value_list = zip(*sorted_list)
+    key_list = list(key_list)
+    value_list = list(value_list)
+
+    sortkey_list = [key(key_value_tuple) for key_value_tuple in sorted_list]
+
+    new_sorted_list = list()
+
+    current_sortkey = sortkey_list[0]
+    item_value_sublist = [sorted_list[0]]
+
+    for item, v, sortkey in zip(key_list[1:], value_list[1:], sortkey_list[1:]):
+        if sortkey == current_sortkey:
+            item_value_sublist.append((item, v))
+        else:
+            item_value_sublist = sorted(item_value_sublist)
+            new_sorted_list += item_value_sublist
+
+            item_value_sublist = list()
+            current_sortkey = sortkey
+
+    if item_value_sublist:
+        new_sorted_list += item_value_sublist
+
+    return new_sorted_list
+
+
+def OutputLargeDict(outfilename, inputdict,
+                    key=lambda x:x, summary=True, reverse=False,
+                    howmanyperline=10, min_cell_width=0,
+                    SignatureKeys=False, SignatureValues=False,
+                    sigtransforms=False):
+
+    # if SignatureKeys is True, each key in inputdict is a tuple of strings
+    # if SignatureKeys is False, each key in inputdict is a string
+
+    # if SignatureValues is True, each value in inputdict is a set/list of tuples of strings
+    # if SignatureValues is False, each value in inputdict is a set/list of strings
+
+    inputdictSortedList = sorted_alphabetized(inputdict.items(),
+                                              key=key, reverse=reverse)
+
+    nItems = len(inputdictSortedList)
+
+    if SignatureKeys:
+        input_keys = ['-'.join(k) for k,v in inputdictSortedList]
+    else:
+        input_keys = [k for k,v in inputdictSortedList]
+
+    if SignatureValues:
+        input_values = [sorted(['-'.join(x) for x in v])
+                        for k,v in inputdictSortedList]
+    elif not sigtransforms:
+        input_values = [sorted(v) for k,v in inputdictSortedList]
+    else:
+        # sigtransforms is True
+        input_values = [sorted(['-'.join(sig) + "." + affix for sig, affix in v])
+                        for k,v in inputdictSortedList]
+
+    max_key_length = max([len(x) for x in input_keys])
+
+    with outfilename.open('w') as f:
+        if summary:
+            for i in range(nItems):
+                print("{} {}".format(str(input_keys[i]).ljust(max_key_length),
+                                     len(input_values[i])), file=f)
+            print(file=f)
+
+        for i in range(nItems):
+            print("{} {}".format(str(input_keys[i]).ljust(max_key_length),
+                                 len(input_values[i])), file=f)
+
+            row = input_values[i]
+            output_list = list()
+            sublist = list()
+
+            for j, item in enumerate(row, 1):
+                sublist.append(item)
+                if j % howmanyperline == 0:
+                    output_list.append(sublist)
+                    sublist = list()
+
+            if sublist:
+                output_list.append(sublist)
+
+            output_list_transposed = zip_longest(*output_list, fillvalue="")
+
+            cell_width_list = [max([len(item) for item in str_list])
+                               for str_list in output_list_transposed]
+
+            if min_cell_width:
+                for j in range(len(cell_width_list)):
+                    if min_cell_width > cell_width_list[j]:
+                        cell_width_list[j] = min_cell_width
+
+            for item_list in output_list:
+                for j, item in enumerate(item_list):
+                    print(str(item).ljust(cell_width_list[j]), end=" ", file=f)
+                print(file=f)
+
+            print(file=f)
+
+"""John created a slight variant of preceding function, but for WordToSigs;
+left the old one untouched since I didn't know what other functions called it"""
+
+# currently not used
+def OutputLargeDict2(outfilename, inputdict, SignatureFlag=True):
+    if SignatureFlag:
+        punctuation = "-"
+    else:
+        punctuation = ""
+
+    items_sorted_list = sorted(inputdict.keys())
+    MaxStemLength = 0
+    MaxLength = 0
+    MaxColumnWidth = {}
+
+    # Find out the maximum number of sigs for each stem
+    for stem in items_sorted_list:
+
+        if len(inputdict[stem]) > MaxLength:
+            MaxLength = len(inputdict[stem])
+        if len(stem) > MaxStemLength:
+            MaxStemLength = len(stem)
+
+    MaxStemLength += 1
+
+    # Create a dict for each column's width
+    for length in range(MaxLength + 1):
+        MaxColumnWidth[length] = 0
+
+    # a list of lines to be written to a file later
+    these_lines = []
+
+    # Find the longest entry in each column
+    for stem in items_sorted_list:
+        these_items = inputdict[stem]
+        for signo in range(len(these_items)):
+            this_item = these_items[signo]
+
+            if SignatureFlag:
+                if len(punctuation.join(this_item)) > MaxColumnWidth[signo]:
+                    MaxColumnWidth[signo] = len(punctuation.join(this_item))
+            else:
+                if len(this_item) > MaxColumnWidth[signo]:
+                    MaxColumnWidth[signo] = len(punctuation.join(this_item))
+
+        # find the longest entry in each column
+
+        for stem in items_sorted_list:
+            these_items = inputdict[stem]
+
+            this_line = []
+            this_line.append(stem + " " * (MaxStemLength - len(stem)))
+
+            for signo in range(len(these_items)):
+                this_item = these_items[signo]
+
+                if SignatureFlag:
+                    this_line.append(punctuation.join(this_item)
+                                 + " " * (MaxColumnWidth[signo] + 1 - len(this_item)))
+                else:
+                    this_line.append(this_item
+                                     + " " * (MaxColumnWidth[signo] + 1 - len(this_item)))
+
+            these_lines.append(''.join(this_line))
+
+    with outfilename.open('w') as file:
+        for this_line in these_lines:
+            print(this_line, file=file)
 
