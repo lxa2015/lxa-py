@@ -10,7 +10,7 @@ from pprint import pprint
 from itertools import zip_longest
 
 #------------------------------------------------------------------------------#
-#    consonants
+#    constants
 #------------------------------------------------------------------------------#
 
 SEP_SIG = "-"          # separator between affixes in a sig (NULL-s-ed-ing)
