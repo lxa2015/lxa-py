@@ -9,11 +9,15 @@ from collections import OrderedDict
 from pprint import pprint
 from itertools import zip_longest
 
+#------------------------------------------------------------------------------#
+#    consonants
+#------------------------------------------------------------------------------#
+
+SEP_SIG = "-"          # separator between affixes in a sig (NULL-s-ed-ing)
+SEP_SIGTRANSFORM = "." # separator between sig and affix (NULL-s-ed-ing.ed)
 
 #------------------------------------------------------------------------------#
-#
 #    general functions used by various lxa5 components
-#
 #------------------------------------------------------------------------------#
 
 def read_corpus_file(corpus_path: Path, casefold=True) -> Counter:
@@ -298,41 +302,64 @@ def stdout_list(header, *args):
 
 
 def sorted_alphabetized(input_object, key=lambda x: x, reverse=False):
+    sorted_list = sorted(input_object, key=key, reverse=reverse)
+    sortkey_list = [key(item) for item in sorted_list]
+
+    new_sorted_list = list()
+
+    current_sortkey = sortkey_list[0]
+    item_sublist = [sorted_list[0]]
+
+    for item, sortkey in zip(sorted_list[1:], sortkey_list[1:]):
+        if sortkey == current_sortkey:
+            item_sublist.append(item)
+        else:
+            new_sorted_list += sorted(item_sublist)
+
+            item_sublist = list()
+            current_sortkey = sortkey
+
+    if item_sublist:
+        new_sorted_list += sorted(item_sublist)
+
+    return new_sorted_list
+
+    #====================================================================
 
     # input_object could be one of the following:
     # -- a list of 2-tuples
     # -- a dict
 
-    if isinstance(input_object, dict):
-        sorted_list = sorted(input_object.items(), key=key, reverse=reverse)
-    else:
-        sorted_list = sorted(input_object, key=key, reverse=reverse)
+#    if isinstance(input_object, dict):
+#        sorted_list = sorted(input_object.items(), key=key, reverse=reverse)
+#    else:
+#        sorted_list = sorted(input_object, key=key, reverse=reverse)
 
-    key_list, value_list = zip(*sorted_list)
-    key_list = list(key_list)
-    value_list = list(value_list)
+#    key_list, value_list = zip(*sorted_list)
+#    key_list = list(key_list)
+#    value_list = list(value_list)
 
-    sortkey_list = [key(key_value_tuple) for key_value_tuple in sorted_list]
+#    sortkey_list = [key(key_value_tuple) for key_value_tuple in sorted_list]
 
-    new_sorted_list = list()
+#    new_sorted_list = list()
 
-    current_sortkey = sortkey_list[0]
-    item_value_sublist = [sorted_list[0]]
+#    current_sortkey = sortkey_list[0]
+#    item_value_sublist = [sorted_list[0]]
 
-    for item, v, sortkey in zip(key_list[1:], value_list[1:], sortkey_list[1:]):
-        if sortkey == current_sortkey:
-            item_value_sublist.append((item, v))
-        else:
-            item_value_sublist = sorted(item_value_sublist)
-            new_sorted_list += item_value_sublist
+#    for item, v, sortkey in zip(key_list[1:], value_list[1:], sortkey_list[1:]):
+#        if sortkey == current_sortkey:
+#            item_value_sublist.append((item, v))
+#        else:
+#            item_value_sublist = sorted(item_value_sublist)
+#            new_sorted_list += item_value_sublist
 
-            item_value_sublist = list()
-            current_sortkey = sortkey
+#            item_value_sublist = list()
+#            current_sortkey = sortkey
 
-    if item_value_sublist:
-        new_sorted_list += item_value_sublist
+#    if item_value_sublist:
+#        new_sorted_list += item_value_sublist
 
-    return new_sorted_list
+#    return new_sorted_list
 
 
 def OutputLargeDict(outfilename, inputdict,
@@ -364,7 +391,7 @@ def OutputLargeDict(outfilename, inputdict,
         input_values = [sorted(v) for k,v in inputdictSortedList]
     else:
         # sigtransforms is True
-        input_values = [sorted(['-'.join(sig) + "." + affix for sig, affix in v])
+        input_values = [sorted(['-'.join(sig) + SEP_SIGTRANSFORM + affix for sig, affix in v])
                         for k,v in inputdictSortedList]
 
     max_key_length = max([len(x) for x in input_keys])
@@ -416,7 +443,7 @@ left the old one untouched since I didn't know what other functions called it"""
 # currently not used
 def OutputLargeDict2(outfilename, inputdict, SignatureFlag=True):
     if SignatureFlag:
-        punctuation = "-"
+        punctuation = SEP_SIG
     else:
         punctuation = ""
 

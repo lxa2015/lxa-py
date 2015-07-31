@@ -9,7 +9,7 @@ from pprint import pprint
 import numpy as np
 import networkx as nx
 
-from lxa5lib import (read_corpus_file, sorted_alphabetized, OutputLargeDict)
+from lxa5lib import (read_corpus_file, SEP_SIG, SEP_SIGTRANSFORM)
 import ngrams
 # from fsm import State, Transducer, get_graph
 
@@ -1210,7 +1210,7 @@ def printWordsToSigTransforms(Signatures, WordToSig, StemCounts, outfile, encodi
             multipleanalyses[word] = bestsig
     lexicon = dict()
     for sig in Signatures:
-        affixes = sig.split("-")
+        affixes = sig.split(SEP_SIG)
         stems = Signatures[sig]
         for stem in stems:
             for affix in affixes:
