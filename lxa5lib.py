@@ -271,12 +271,17 @@ def load_config(language, corpus, datafolder, filename='config.json',
 
 def json_pdump(inputdict, outfile,
                key=lambda x:x, reverse=False,
+               asis=False,
                ensure_ascii=False,
                indent=4, separators=(',', ': ')):
     "json pretty dump"
 
-    outputdict = OrderedDict(sorted_alphabetized(inputdict.items(),
-                                key=key, reverse=reverse))
+    if asis:
+        # don't touch inputdict
+        outputdict = inputdict
+    else:
+        outputdict = OrderedDict(sorted_alphabetized(inputdict.items(),
+                                    key=key, reverse=reverse))
 
     # dumping could be tricky, as keys and values can potentially be of any
     # basic and non-basic data types.

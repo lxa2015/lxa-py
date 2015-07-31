@@ -91,7 +91,7 @@ def GetMyGraph(infilename: Path, useWeights=None):
 
 def GetContextArray(corpus, nwords, wordlist,
                     infileBigramsname, infileTrigramsname,
-                    _pickle=False):
+                    create_WordToContexts, create_ContextToWords):
 
     WordToContexts = dict()
     ContextToWords = dict()
@@ -143,12 +143,13 @@ def GetContextArray(corpus, nwords, wordlist,
             if worddict.get(word3) is not None:
                 addword(word3, word1 + word2 + "__")
 
-            if _pickle:
-                for (word, context) in zip(_wordList, _contextList):
+            for (word, context) in zip(_wordList, _contextList):
+                if create_WordToContexts:
                     if word not in WordToContexts:
                         WordToContexts[word] = Counter()
                     WordToContexts[word].update([context])
 
+                if create_ContextToWords:
                     if context not in ContextToWords:
                         ContextToWords[context] = Counter()
                     ContextToWords[context].update([word])
@@ -173,16 +174,16 @@ def GetContextArray(corpus, nwords, wordlist,
             if worddict.get(c[1]) is not None:
                 addword(c[1], c[0] + "__")
 
-            if _pickle:
-                for (word, context) in zip(_wordList, _contextList):
+            for (word, context) in zip(_wordList, _contextList):
+                if create_WordToContexts:
                     if word not in WordToContexts:
                         WordToContexts[word] = Counter()
                     WordToContexts[word].update([context])
 
+                if create_ContextToWords:
                     if context not in ContextToWords:
                         ContextToWords[context] = Counter()
                     ContextToWords[context].update([word])
-
 
     return ( sp.csr_matrix((vals,(rows,cols)), shape=(nwords, ns.ncontexts) ),
              WordToContexts, ContextToWords )
@@ -237,6 +238,46 @@ def GetEigenvectors(laplacian):
     return sl.eigs(laplacian_sparse)
 
 
+# work in progress for code from JG, July 31, 2015, J. Lee
+
+#def wut():
+
+#    # AnalyzedWordList is the list of words used to define the coordinates of the eigenvectors.
+
+#    NewContexts = dict()
+
+#    print "Finding contexts shared by groups of words"
+
+#    HeavilyWeightedContexts = dict()
+
+#    for word1 in analyzedwordlist:     
+#        print >>outfileContexts, "\n\n---------------\n", word1
+#        NewContexts[word1] = dict()
+#        for word2 in closestNeighbors[word1]:
+#            for context in FindListOfSharedContexts(word1, word2,  from_word_to_context):
+#                if context not in NewContexts[word1]:
+#                    NewContexts[word1][context] = list()
+#                NewContexts[word1][context].append(word2)
+#        for context in NewContexts[word1]:
+#            if  len(NewContexts[word1][context]) > 5:    
+#                print >>outfileContexts, "\n\n\t", context        
+#                for word in NewContexts[word1][context]:
+#                    print >>outfileContexts, "%12s" % word, 
+#                print >>outfileContexts                
+#                     
+#    print "...Done"     
+
+#    ImportantContexts = dict()
+#    for (word, thiswordscontexts) in NewContexts:
+#        for thiscontext in thiswordscontexts:
+#            if thiscontext not in ImportantContexts:
+#                ImportantContexts[thiscontext] = list()
+#            ImportantContexts[thiscontext].append(word)
+#    for (context,itswords) in ImportantContexts:
+#        print >>outfileContexts, context, itswords
+#        print >>outfileContexts
+
+
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 # TODO: bring latex output back
@@ -266,14 +307,14 @@ def GetEigenvectors(laplacian):
 #                    print >>outfileEigenvectors,headerformatstr %("Eigenvector number", eigenno, myeigenvalues[eigenno], "word" )
 #                    print >>outfileEigenvectors,"_"*50 
 
-#                    eigenlist=list()		
-#                    for wordno in range (NumberOfWordsForAnalysis):		 
-#                            eigenlist.append( (wordno,myeigenvectors[wordno, eigenno]) )			
-#                    eigenlist.sort(key=lambda x:x[1])			
+#                    eigenlist=list()        
+#                    for wordno in range (NumberOfWordsForAnalysis):         
+#                            eigenlist.append( (wordno,myeigenvectors[wordno, eigenno]) )            
+#                    eigenlist.sort(key=lambda x:x[1])            
 
-#                    for wordno in range(NumberOfWordsForAnalysis):	
+#                    for wordno in range(NumberOfWordsForAnalysis):    
 #                            word = analyzedwordlist[eigenlist[wordno][0]]
-#                            coord =  eigenlist[wordno][1]		
+#                            coord =  eigenlist[wordno][1]        
 #                            print >>outfileEigenvectors, formatstr %(eigenno, word, eigenlist[wordno][1])
 
 
@@ -281,17 +322,17 @@ def GetEigenvectors(laplacian):
 
 #    if LatexFlag:
 #            for eigenno in range(NumberOfEigenvectors):
-#                    eigenlist=list()	
+#                    eigenlist=list()    
 #                    data = list()
-#                    for wordno in range (NumberOfWordsForAnalysis):		 
-#                            eigenlist.append( (wordno,myeigenvectors[wordno, eigenno]) )			
-#                    eigenlist.sort(key=lambda x:x[1])			
-#                    print >>outfileLatex			 
+#                    for wordno in range (NumberOfWordsForAnalysis):         
+#                            eigenlist.append( (wordno,myeigenvectors[wordno, eigenno]) )            
+#                    eigenlist.sort(key=lambda x:x[1])            
+#                    print >>outfileLatex             
 #                    print >>outfileLatex, "Eigenvector number", eigenno, "\n" 
 #                    print >>outfileLatex, "\\begin{tabular}{lll}\\toprule"
 #                    print >>outfileLatex, " & word & coordinate \\\\ \\midrule "
 
-#                    for i in range(NumberOfWordsForAnalysis):			 
+#                    for i in range(NumberOfWordsForAnalysis):             
 #                            word = analyzedwordlist[eigenlist[i][0]]
 #                            coord =  eigenlist[i][1]
 #                            if i < NumberOfWordsToDisplayForEachEigenvector or i > NumberOfWordsForAnalysis - NumberOfWordsToDisplayForEachEigenvector:
