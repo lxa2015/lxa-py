@@ -10,6 +10,7 @@
 #-----------------------------------------------------------------------#
 
 from collections import (OrderedDict, defaultdict, Counter)
+from itertools import combinations
 from pathlib import Path
 
 import numpy as np
@@ -18,6 +19,7 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as sl
 import networkx as nx
 
+from lxa5lib import sorted_alphabetized
 
 def Normalize(NumberOfWordsForAnalysis, CountOfSharedContexts):
     arr = np.ones((NumberOfWordsForAnalysis))
@@ -58,43 +60,21 @@ def GetMyWords(infileWordsname, corpus, minWordFreq=1):
                                             key=lambda x:x[1], reverse=True))
 
 
-def GetMyGraph(infilename: Path, useWeights=None):
+def GetMyGraph(WordToNeighbors_by_str, useWeights=None):
     G = nx.Graph()
-
-    with infilename.open() as infile:
-
-        for line in infile:
-
-            if (not line) or line.startswith('#'):
-                continue
-
-            lineSplit = line.split()
-
-            if len(lineSplit) < 2:
-                continue
-
-            headword, *words = lineSplit
-
-            nWords = len(words)
-
-            if useWeights == 'y':
-                for (idx, word) in enumerate(words):
-                    _weight = nWords - idx
-                    G.add_edge(headword, word, weight=_weight)
-            else:
-                for (idx, word) in enumerate(words):
-                    _weight = 1
-                    G.add_edge(headword, word, weight=_weight)
-
+    for word in WordToNeighbors_by_str.keys():
+        neighbors = WordToNeighbors_by_str[word] # a list
+        for neighbor in neighbors:
+            G.add_edge(word, neighbor)
     return G
 
 
-def GetContextArray(corpus, nwords, wordlist,
+def GetContextArray(corpus, nwords, worddict,
                     infileBigramsname, infileTrigramsname,
                     create_WordToContexts, create_ContextToWords):
 
-    WordToContexts = dict()
-    ContextToWords = dict()
+    WordToContexts = defaultdict(Counter)
+    ContextToWords = defaultdict(Counter)
 
     class Namespace:
         pass
@@ -105,7 +85,6 @@ def GetContextArray(corpus, nwords, wordlist,
         ns.ncontexts += 1
         return tmp
     contextdict = defaultdict(contexts_incr)
-    worddict = {w: wordlist.index(w) for w in wordlist}
 
     # entries for sparse matrix
     rows = []
@@ -119,9 +98,12 @@ def GetContextArray(corpus, nwords, wordlist,
         cols.append(c)
         vals.append(1)
 
+        WordToContexts[w].update([c])
+        ContextToWords[c].update([w])
+
     with infileTrigramsname.open() as trigramfile:
         for line in trigramfile:
-            line = line.replace('\n', '').replace('\r', '')
+            line = line.strip()
             if (not line) or line.startswith('#') or hasGooglePOSTag(line, corpus):
                 continue
             c = line.split()
@@ -129,64 +111,38 @@ def GetContextArray(corpus, nwords, wordlist,
             word1 = c[0]
             word2 = c[1]
             word3 = c[2]
-            _wordList = [word1, word2, word3]
 
             context1 = tuple(['_', word2, word3])
             context2 = tuple([word1, '_', word3])
             context3 = tuple([word1, word2, '_'])
-            _contextList = [context1, context2, context3]
 
             if worddict.get(word1) is not None:
-                addword(word1, "__" + word2 + word3)
+                addword(word1, context1)
             if worddict.get(word2) is not None:
-                addword(word2, word1 + "__" + word3)
+                addword(word2, context2)
             if worddict.get(word3) is not None:
-                addword(word3, word1 + word2 + "__")
-
-            for (word, context) in zip(_wordList, _contextList):
-                if create_WordToContexts:
-                    if word not in WordToContexts:
-                        WordToContexts[word] = Counter()
-                    WordToContexts[word].update([context])
-
-                if create_ContextToWords:
-                    if context not in ContextToWords:
-                        ContextToWords[context] = Counter()
-                    ContextToWords[context].update([word])
+                addword(word3, context3)
 
     with infileBigramsname.open() as bigramfile:
         for line in bigramfile:
-            line = line.replace('\n', '').replace('\r', '')
+            line = line.strip()
             if (not line) or line.startswith('#') or hasGooglePOSTag(line, corpus):
                 continue
             c = line.split()
 
             word1 = c[0]
             word2 = c[1]
-            _wordList = [word1, word2]
 
             context1 = tuple(['_', word2])
             context2 = tuple([word1, '_'])
-            _contextList = [context1, context2]
 
-            if worddict.get(c[0]) is not None:
-                addword(c[0], "__" + c[1])
-            if worddict.get(c[1]) is not None:
-                addword(c[1], c[0] + "__")
-
-            for (word, context) in zip(_wordList, _contextList):
-                if create_WordToContexts:
-                    if word not in WordToContexts:
-                        WordToContexts[word] = Counter()
-                    WordToContexts[word].update([context])
-
-                if create_ContextToWords:
-                    if context not in ContextToWords:
-                        ContextToWords[context] = Counter()
-                    ContextToWords[context].update([word])
+            if worddict.get(word1) is not None:
+                addword(word1, context1)
+            if worddict.get(word2) is not None:
+                addword(word2, context2)
 
     return ( sp.csr_matrix((vals,(rows,cols)), shape=(nwords, ns.ncontexts) ),
-             WordToContexts, ContextToWords )
+             contextdict, WordToContexts, ContextToWords )
 
 
 def counting_context_features(context_array):
@@ -226,7 +182,7 @@ def compute_words_distance(nwords, coordinates):
     return sd.squareform(sd.pdist(coordinates, "euclidean"))
 
 
-def compute_closest_neighbors(analyzedwordlist, wordsdistance, NumberOfNeighbors):
+def compute_closest_neighbors(wordsdistance, NumberOfNeighbors):
     sortedNeighbors = wordsdistance.argsort() # indices of sorted rows, low to high
     # truncate columns at NumberOfNeighbors+1 
     closestNeighbors = sortedNeighbors[:,:NumberOfNeighbors+1] 
@@ -238,44 +194,60 @@ def GetEigenvectors(laplacian):
     return sl.eigs(laplacian_sparse)
 
 
-# work in progress for code from JG, July 31, 2015, J. Lee
+def compute_WdToSharedcntxtsofneighbors(nWordsForAnalysis, WordToContexts,
+                                        WordToNeighbors, ContextToWords,
+                                        nNeighbors, mincontexts):
 
-#def wut():
+    WdToSharedcntxtsofneighbors = dict()
 
-#    # AnalyzedWordList is the list of words used to define the coordinates of the eigenvectors.
+    for word in range(nWordsForAnalysis):
+        WdToSharedcntxtsofneighbors[word] = dict()
 
-#    NewContexts = dict()
+        neighbors = WordToNeighbors[word] # set of neighbor indices
+        contexts = WordToContexts[word] # set of context indices of current word
 
-#    print "Finding contexts shared by groups of words"
+        for context in contexts:
+            WdToSharedcntxtsofneighbors[word][context] = list()
 
-#    HeavilyWeightedContexts = dict()
+            for neighbor in neighbors:
+                if neighbor in ContextToWords[context]:
+                    WdToSharedcntxtsofneighbors[word][context].append(neighbor)
 
-#    for word1 in analyzedwordlist:     
-#        print >>outfileContexts, "\n\n---------------\n", word1
-#        NewContexts[word1] = dict()
-#        for word2 in closestNeighbors[word1]:
-#            for context in FindListOfSharedContexts(word1, word2,  from_word_to_context):
-#                if context not in NewContexts[word1]:
-#                    NewContexts[word1][context] = list()
-#                NewContexts[word1][context].append(word2)
-#        for context in NewContexts[word1]:
-#            if  len(NewContexts[word1][context]) > 5:    
-#                print >>outfileContexts, "\n\n\t", context        
-#                for word in NewContexts[word1][context]:
-#                    print >>outfileContexts, "%12s" % word, 
-#                print >>outfileContexts                
-#                     
-#    print "...Done"     
+            if len(WdToSharedcntxtsofneighbors[word][context]) < mincontexts:
+                del WdToSharedcntxtsofneighbors[word][context]
 
-#    ImportantContexts = dict()
-#    for (word, thiswordscontexts) in NewContexts:
-#        for thiscontext in thiswordscontexts:
-#            if thiscontext not in ImportantContexts:
-#                ImportantContexts[thiscontext] = list()
-#            ImportantContexts[thiscontext].append(word)
-#    for (context,itswords) in ImportantContexts:
-#        print >>outfileContexts, context, itswords
-#        print >>outfileContexts
+    return WdToSharedcntxtsofneighbors
+
+def output_WdToSharedcntxtsofneighbors(outfilenameSharedcontexts,
+                                        WdToSharedcntxtsofneighbors,
+                                        worddict, contextdict,
+                                        nWordsForAnalysis):
+
+    _worddict = {v:k for k,v in worddict.items()} # from index to word
+    _contextdict = {v:k for k,v in contextdict.items()} # from index to context
+
+    with outfilenameSharedcontexts.open("w") as f:
+        for word_idx in range(nWordsForAnalysis):
+
+            ContextToNeighbors = WdToSharedcntxtsofneighbors[word_idx] # a dict
+
+            ContextToNeighbors = sorted_alphabetized(ContextToNeighbors.items(),
+                                        key=lambda x: len(x[1]), reverse=True,
+                                        alphaby=lambda x:x[1])
+            # ContextToNeighbors is now a list of tuples, not a dict anymore
+
+            word = _worddict[word_idx]
+
+            print("{} {} ({})".format(word_idx+1, word,
+                                      len(ContextToNeighbors)), file=f)
+
+            for context_idx, neighbor_indices in ContextToNeighbors:
+                context = " ".join(_contextdict[context_idx])
+                neighbors = " ".join([_worddict[i] for i in neighbor_indices])
+
+                print("          {:20} | {}".format(context, neighbors), file=f)
+
+            print(file=f)
 
 
 #------------------------------------------------------------------------------#

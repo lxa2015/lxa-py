@@ -306,7 +306,8 @@ def stdout_list(header, *args):
         print(x, flush=True)
 
 
-def sorted_alphabetized(input_object, key=lambda x: x, reverse=False):
+def sorted_alphabetized(input_object, key=lambda x: x, reverse=False,
+                        alphaby=lambda x:x):
     sorted_list = sorted(input_object, key=key, reverse=reverse)
     sortkey_list = [key(item) for item in sorted_list]
 
@@ -319,7 +320,7 @@ def sorted_alphabetized(input_object, key=lambda x: x, reverse=False):
         if sortkey == current_sortkey:
             item_sublist.append(item)
         else:
-            new_sorted_list += sorted(item_sublist)
+            new_sorted_list += sorted(item_sublist, key=alphaby)
 
             item_sublist = list()
             current_sortkey = sortkey

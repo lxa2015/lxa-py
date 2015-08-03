@@ -20,6 +20,8 @@ from manifold_module import (GetMyWords, GetContextArray,
                              Normalize, compute_incidence_graph,
                              compute_laplacian, GetEigenvectors,
                              compute_words_distance, compute_closest_neighbors,
+                             compute_WdToSharedcntxtsofneighbors,
+                             output_WdToSharedcntxtsofneighbors,
                              GetMyGraph)
 import ngrams
 
@@ -57,8 +59,11 @@ def makeArgParser(configfilename="config.json"):
     parser.add_argument("--nEigenvectors", help="Number of eigenvectors",
                         type=int, default=11)
 
+    parser.add_argument("--mincontexts", help="Minimum number of neighbors "
+                                              "with shared contexts",
+                        type=int, default=5)
     parser.add_argument("--wordtocontexts", help="create the WordToContexts dict?",
-                        type=bool, default=True)
+                        type=bool, default=False)
     parser.add_argument("--contexttowords", help="create the ContextToWords dict?",
                         type=bool, default=False)
 
@@ -67,10 +72,10 @@ def makeArgParser(configfilename="config.json"):
 
 def main(language, corpus, datafolder,
          maxwordtypes, nNeighbors, nEigenvectors, 
-         create_WordToContexts, create_ContextToWords):
+         create_WordToContexts, create_ContextToWords, mincontexts):
 
     corpusStem = Path(corpus).stem
-    corpusName = corpusStem + '_' + str(maxwordtypes) + '_' + str(nNeighbors)
+
 
     infolder = Path(datafolder, language, 'ngrams')
     outfolder = Path(datafolder, language, 'neighbors')
@@ -104,9 +109,15 @@ def main(language, corpus, datafolder,
     print('number of words for analysis adjusted to', nWordsForAnalysis)
 
     analyzedwordlist = list(mywords.keys())[ : nWordsForAnalysis] 
+    worddict = {w: analyzedwordlist.index(w) for w in analyzedwordlist}
+
+    corpusName = corpusStem + '_' + str(nWordsForAnalysis) + '_' + str(nNeighbors)
 
     outfilenameNeighbors = Path(outfolder, corpusName + \
                                 "_nearest_neighbors.txt")
+
+    outfilenameSharedcontexts = Path(outfolder, corpusName + \
+                                "_shared_contexts.txt")
 
     outfilenameNeighborGraph = Path(outfolder, corpusName + \
                                     "_nearest_neighbors.gexf")
@@ -119,34 +130,26 @@ def main(language, corpus, datafolder,
 
     print("Reading bigrams/trigrams and computing context array...", flush=True)
 
-    context_array, WordToContexts, ContextToWords = GetContextArray(corpus, 
-                                   maxwordtypes, analyzedwordlist,
+    context_array, contextdict, \
+    WordToContexts, ContextToWords = GetContextArray(corpus, 
+                                   nWordsForAnalysis, worddict,
                                    infileBigramsname, infileTrigramsname,
                                    create_WordToContexts, create_ContextToWords)
 
-    if create_WordToContexts:
-        json_pdump(WordToContexts, outWordToContexts_json.open("w"),
-                   key=lambda x : len(x[1]), reverse=True)
-        print('WordToContexts ready', flush=True)
-
-    if create_ContextToWords:
-        json_pdump(ContextToWords, outContextToWords_json.open("w"),
-                   key=lambda x : len(x[1]), reverse=True)
-        print('ContextToWords ready', flush=True)
-
-    print("Computing shared contexts...", flush=True)
+    print("Computing shared context master matrix...", flush=True)
     CountOfSharedContexts = context_array.dot(context_array.T).todense()
     del context_array
 
     print("Computing diameter...", flush=True)
-    Diameter = Normalize(maxwordtypes, CountOfSharedContexts)
+    Diameter = Normalize(nWordsForAnalysis, CountOfSharedContexts)
 
     print("Computing incidence graph...", flush=True)
-    incidencegraph = compute_incidence_graph(maxwordtypes, Diameter,
+    incidencegraph = compute_incidence_graph(nWordsForAnalysis, Diameter,
                                              CountOfSharedContexts)
-    
+    del CountOfSharedContexts
+
     print("Computing mylaplacian...", flush=True)
-    mylaplacian = compute_laplacian(maxwordtypes, Diameter, incidencegraph)
+    mylaplacian = compute_laplacian(nWordsForAnalysis, Diameter, incidencegraph)
     del Diameter
     del incidencegraph
 
@@ -158,43 +161,63 @@ def main(language, corpus, datafolder,
     print('Computing distances between words...', flush=True)
     # take first N columns of eigenvector matrix
     coordinates = myeigenvectors[:,:nEigenvectors] 
-    wordsdistance = compute_words_distance(maxwordtypes, coordinates)
+    wordsdistance = compute_words_distance(nWordsForAnalysis, coordinates)
     del coordinates
 
     print('Computing nearest neighbors now... ', flush=True)
-    closestNeighbors = compute_closest_neighbors(analyzedwordlist,
-                                                 wordsdistance, nNeighbors)
+    closestNeighbors = compute_closest_neighbors(wordsdistance, nNeighbors)
 
-    WordToNeighbors = OrderedDict()
+    WordToNeighbors_by_str = OrderedDict()
+    WordToNeighbors = dict()
+
     for wordno in range(nWordsForAnalysis):
         line = closestNeighbors[wordno]
         word_idx, neighbors_idx = line[0], line[1:]
         word = analyzedwordlist[word_idx]
         neighbors = [analyzedwordlist[idx] for idx in neighbors_idx]
-        WordToNeighbors[word] = neighbors
+        WordToNeighbors_by_str[word] = neighbors
+        WordToNeighbors[word_idx] = neighbors_idx
+
+    del closestNeighbors
 
     with outfilenameNeighbors.open('w') as f:
         print("# language: {}\n# corpus: {}\n"
               "# Number of word types analyzed: {}\n"
               "# Number of neighbors: {}\n".format(language, corpus,
-                                              maxwordtypes, nNeighbors), file=f)
+                                         nWordsForAnalysis, nNeighbors), file=f)
 
-        for word, neighbors in WordToNeighbors.items():
+        for word, neighbors in WordToNeighbors_by_str.items():
             print(word, " ".join(neighbors), file=f)
 
-    neighbor_graph = GetMyGraph(outfilenameNeighbors)
+    neighbor_graph = GetMyGraph(WordToNeighbors_by_str)
     nx.write_gexf(neighbor_graph, str(outfilenameNeighborGraph))
 
     WordToNeighbors_json = changeFilenameSuffix(outfilenameNeighbors, ".json")
-    json_pdump(WordToNeighbors, WordToNeighbors_json.open("w"), asis=True)
+    json_pdump(WordToNeighbors_by_str, WordToNeighbors_json.open("w"), asis=True)
+
+    print("Computing shared contexts among neighbors...", flush=True)
+    WdToSharedcntxtsofneighbors = compute_WdToSharedcntxtsofneighbors(
+                                        nWordsForAnalysis, WordToContexts,
+                                        WordToNeighbors, ContextToWords,
+                                        nNeighbors, mincontexts)
+
+    output_WdToSharedcntxtsofneighbors(outfilenameSharedcontexts,
+                                        WdToSharedcntxtsofneighbors,
+                                        worddict, contextdict,
+                                        nWordsForAnalysis)
 
     outputfilelist = [outfilenameNeighbors, outfilenameNeighborGraph,
-                      WordToNeighbors_json]
+                      WordToNeighbors_json, outfilenameSharedcontexts]
 
     if create_WordToContexts:
         outputfilelist.append(outWordToContexts_json)
+        json_pdump(WordToContexts, outWordToContexts_json.open("w"),
+                   key=lambda x : len(x[1]), reverse=True)
+
     if create_ContextToWords:
         outputfilelist.append(outContextToWords_json)
+        json_pdump(ContextToWords, outContextToWords_json.open("w"),
+                   key=lambda x : len(x[1]), reverse=True)
 
     stdout_list("Output files:", *outputfilelist)
 
@@ -208,6 +231,7 @@ if __name__ == "__main__":
     nEigenvectors = args.nEigenvectors
     create_WordToContexts = args.wordtocontexts
     create_ContextToWords = args.contexttowords
+    mincontexts = args.mincontexts
 
     description="You are running {}.\n".format(__file__) + \
                 "This program computes word neighbors.\n" + \
@@ -215,14 +239,20 @@ if __name__ == "__main__":
                 "nNeighbors = {}\n".format(nNeighbors) + \
                 "nEigenvectors = {}\n".format(nEigenvectors) + \
                 "create_WordToContexts = {}\n".format(create_WordToContexts) + \
-                "create_ContextToWords = {}\n".format(create_ContextToWords)
+                "create_ContextToWords = {}\n".format(create_ContextToWords) + \
+                "mincontexts = {}".format(mincontexts)
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                       args.corpus, args.datafolder, args.config,
                                       description=description,
                                       scriptname=__file__)
 
+    if mincontexts > nNeighbors:
+        print("\nBecause mincontexts > nNeighbors (which is disallowed),\n"
+              "mincontexts is now set to equal nNeighbors.\n")
+        mincontexts = nNeighbors
+
     main(language, corpus, datafolder,
          maxwordtypes, nNeighbors, nEigenvectors,
-         create_WordToContexts, create_ContextToWords)
+         create_WordToContexts, create_ContextToWords, mincontexts)
 
