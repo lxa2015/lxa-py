@@ -1518,7 +1518,8 @@ def OutputStemFile(stemfilename: Path, StemToWord, wordFreqDict):
 
 
 # ----------------------------------------------------------------------------------------------------------------------------#
-def MakeBiSignatures(wordlist, FindSuffixesFlag, MinimumStemLength, MaximumAffixLength):
+def MakeBiSignatures(wordlist, MinimumStemLength, MaximumAffixLength,
+                     FindSuffixesFlag=True):
     '''
     This function finds pairs of words which make a valid signature,
     and makes Dictionary whose key is the signature and 
@@ -1719,8 +1720,8 @@ def GetWordFromStemAffix(stem, affix):
 
 
 # ------------------------------------------------------------------------------#
-def MakeSigToStems(StemToWord, FindSuffixesFlag, MaximumAffixLength,
-                   MinimumNumberofSigUses, NoAffixLengthRestriction=False):
+def MakeSigToStems(StemToWord, MaximumAffixLength, MinimumNumberofSigUses,
+                   FindSuffixesFlag=True, NoAffixLengthRestriction=False):
     _SigToStems = dict()  # temporary version
 
     for stem in StemToWord.keys():

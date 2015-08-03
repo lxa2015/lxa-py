@@ -135,15 +135,15 @@ def main(language, corpus, datafolder,
     #           AffixToSigs (key: str of affix | value: set of sigs )
     # -------------------------------------------------------------------------#
 
-    BisigToTuple = MakeBiSignatures(wordlist, FindSuffixesFlag,
-                                    MinimumStemLength, MaximumAffixLength)
+    BisigToTuple = MakeBiSignatures(wordlist, MinimumStemLength,
+                                    MaximumAffixLength, FindSuffixesFlag)
     print("BisigToTuple ready", flush=True)
 
     StemToWords = MakeStemToWords(BisigToTuple, MinimumNumberofSigUses)
     print("StemToWords ready", flush=True)
 
-    SigToStems = MakeSigToStems(StemToWords, FindSuffixesFlag,
-                                MaximumAffixLength, MinimumNumberofSigUses)
+    SigToStems = MakeSigToStems(StemToWords, MaximumAffixLength,
+                                MinimumNumberofSigUses, FindSuffixesFlag)
     print("SigToStems ready", flush=True)
 
     StemToSig = MakeStemToSig(SigToStems)
