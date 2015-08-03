@@ -231,9 +231,14 @@ def output_WdToSharedcntxtsofneighbors(outfilenameSharedcontexts,
 
             ContextToNeighbors = WdToSharedcntxtsofneighbors[word_idx] # a dict
 
-            ContextToNeighbors = sorted_alphabetized(ContextToNeighbors.items(),
+
+            ContextToNeighbors = sorted(ContextToNeighbors.items())
+            ContextToNeighbors = sorted_alphabetized(ContextToNeighbors,
                                         key=lambda x: len(x[1]), reverse=True,
                                         alphaby=lambda x:x[1])
+            # minor TODO: sort by key alphabetically
+            #             *after* these sorting steps are done?
+
             # ContextToNeighbors is now a list of tuples, not a dict anymore
 
             word = _worddict[word_idx]
