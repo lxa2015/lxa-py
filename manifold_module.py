@@ -231,7 +231,6 @@ def output_WdToSharedcntxtsofneighbors(outfilenameSharedcontexts,
 
             ContextToNeighbors = WdToSharedcntxtsofneighbors[word_idx] # a dict
 
-
             ContextToNeighbors = sorted(ContextToNeighbors.items())
             ContextToNeighbors = sorted_alphabetized(ContextToNeighbors,
                                         key=lambda x: len(x[1]), reverse=True,

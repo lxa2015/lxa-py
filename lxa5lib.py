@@ -296,6 +296,34 @@ def json_pdump(inputdict, outfile,
               indent=indent, separators=separators)
 
 
+def json_pload(infile):
+    '''json pretty load'''
+    outdict = json.load(infile)
+
+    try:
+        _keys = [eval(k) for k in outdict.keys()]
+    except NameError:
+        convertkeys = False
+    else:
+        convertkeys = True
+
+    try:
+        _values = [eval(v) for v in outdict.values()]
+    except NameError:
+        convertvalues = False
+    else:
+        convertvalues = True
+
+    if convertkeys and convertvalues:
+        return {eval(k):eval(v) for k, v in outdict.items()}
+    elif convertkeys:
+        return {eval(k):v for k, v in outdict.items()}
+    elif convertvalues:
+        return {k:eval(v) for k, v in outdict.items()}
+    else:
+        return {k:v for k, v in outdict.items()}
+
+
 def changeFilenameSuffix(filename: Path, newsuffix):
     return Path(filename.parent, filename.stem + newsuffix)
 

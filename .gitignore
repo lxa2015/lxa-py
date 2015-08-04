@@ -3,6 +3,7 @@
 *.pyw
 *.json
 incremental*
+test*
 *~
 
 env

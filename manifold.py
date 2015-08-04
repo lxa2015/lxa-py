@@ -13,6 +13,7 @@
 import argparse
 from pathlib import Path
 from collections import OrderedDict
+import sys
 
 import networkx as nx
 
@@ -24,10 +25,12 @@ from manifold_module import (GetMyWords, GetContextArray,
                              output_WdToSharedcntxtsofneighbors,
                              GetMyGraph)
 import ngrams
+import lxa5
 
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix, stdout_list,
-                     load_config_for_command_line_help)
+                     changeFilenameSuffix, stdout_list, json_pload,
+                     load_config_for_command_line_help,
+                     SEP_SIG, SEP_SIGTRANSFORM)
 
 
 def makeArgParser(configfilename="config.json"):
@@ -66,16 +69,18 @@ def makeArgParser(configfilename="config.json"):
                         type=bool, default=False)
     parser.add_argument("--contexttowords", help="create the ContextToWords dict?",
                         type=bool, default=False)
+    parser.add_argument("--usesigtransforms", help="use signature transforms?",
+                        type=bool, default=True)
 
     return parser
 
 
 def main(language, corpus, datafolder,
          maxwordtypes, nNeighbors, nEigenvectors, 
-         create_WordToContexts, create_ContextToWords, mincontexts):
+         create_WordToContexts, create_ContextToWords, mincontexts,
+         usesigtransforms):
 
     corpusStem = Path(corpus).stem
-
 
     infolder = Path(datafolder, language, 'ngrams')
     outfolder = Path(datafolder, language, 'neighbors')
@@ -91,8 +96,26 @@ def main(language, corpus, datafolder,
     infileBigramsname = Path(infolder, corpusStem + '_bigrams.txt')
     infileTrigramsname = Path(infolder, corpusStem + '_trigrams.txt')
 
-    if not infileWordsname.exists():
+    if (not infileWordsname.exists()) or \
+       (not infileBigramsname.exists()) or \
+       (not infileTrigramsname.exists()):
+        print("Error in locating n-gram data files.\n"
+              "The program now creates them.\n")
         ngrams.main(language, corpus, datafolder)
+
+    if usesigtransforms:
+        infolderlxa = Path(datafolder, language, 'lxa')
+        sigtransform_json_fname = Path(infolderlxa,
+                                        corpusStem + "_WordToSigtransforms.json")
+        try:
+            WordToSigtransforms = json_pload(sigtransform_json_fname.open())
+        except FileNotFoundError:
+            print("The file \"{}\" is not found.\n"
+                  "The program now creates it.\n".format(sigtransform_json_fname))
+            lxa5.main(language, corpus, datafolder)
+            WordToSigtransforms = json_pload(sigtransform_json_fname.open())
+
+    # WordToSigtransforms just read into the program; to be used soon...
 
     print('Reading word list...', flush=True)
     mywords = GetMyWords(infileWordsname, corpus)
@@ -232,6 +255,7 @@ if __name__ == "__main__":
     create_WordToContexts = args.wordtocontexts
     create_ContextToWords = args.contexttowords
     mincontexts = args.mincontexts
+    usesigtransforms = args.usesigtransforms
 
     description="You are running {}.\n".format(__file__) + \
                 "This program computes word neighbors.\n" + \
@@ -240,7 +264,8 @@ if __name__ == "__main__":
                 "nEigenvectors = {}\n".format(nEigenvectors) + \
                 "create_WordToContexts = {}\n".format(create_WordToContexts) + \
                 "create_ContextToWords = {}\n".format(create_ContextToWords) + \
-                "mincontexts = {}".format(mincontexts)
+                "mincontexts = {}".format(mincontexts) + \
+                "usesigtransforms = {}".format(usesigtransforms)
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                       args.corpus, args.datafolder, args.config,
@@ -254,5 +279,6 @@ if __name__ == "__main__":
 
     main(language, corpus, datafolder,
          maxwordtypes, nNeighbors, nEigenvectors,
-         create_WordToContexts, create_ContextToWords, mincontexts)
+         create_WordToContexts, create_ContextToWords, mincontexts,
+         usesigtransforms)
 

@@ -83,8 +83,8 @@ def create_wordlist(language, filename, datafolder,
 
 
 def main(language, corpus, datafolder,
-         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
-         maxwordtokens):
+         MinimumStemLength=4, MaximumAffixLength=3, MinimumNumberofSigUses=5,
+         maxwordtokens=0):
 
     if maxwordtokens:
         corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
