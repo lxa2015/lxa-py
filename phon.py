@@ -150,15 +150,15 @@ def main(language, corpus, datafolder):
 
     outfilenamePhones_json = changeFilenameSuffix(outfilenamePhones, '.json')
     with outfilenamePhones_json.open('w') as f:
-        json_pdump(phoneDict, f, sort_function=lambda x:x[1], reverse=True)
+        json_pdump(phoneDict, f, key=lambda x:x[1], reverse=True)
 
     outfilenameBiphones_json = changeFilenameSuffix(outfilenameBiphones, '.json')
     with outfilenameBiphones_json.open('w') as f:
-        json_pdump(biphoneDict, f, sort_function=lambda x:x[1], reverse=True)
+        json_pdump(biphoneDict, f, key=lambda x:x[1], reverse=True)
 
     outfilenameTriphones_json = changeFilenameSuffix(outfilenameTriphones, '.json')
     with outfilenameTriphones_json.open('w') as f:
-        json_pdump(triphoneDict, f, sort_function=lambda x:x[1], reverse=True)
+        json_pdump(triphoneDict, f, key=lambda x:x[1], reverse=True)
 
     print('phone, biphone and triphone files ready')
 
