@@ -302,14 +302,14 @@ def json_pload(infile):
 
     try:
         _keys = [eval(k) for k in outdict.keys()]
-    except NameError:
+    except (NameError, SyntaxError):
         convertkeys = False
     else:
         convertkeys = True
 
     try:
         _values = [eval(v) for v in outdict.values()]
-    except NameError:
+    except (NameError, SyntaxError):
         convertvalues = False
     else:
         convertvalues = True
@@ -336,27 +336,51 @@ def stdout_list(header, *args):
 
 def sorted_alphabetized(input_object, key=lambda x: x, reverse=False,
                         alphaby=lambda x:x):
+    if not input_object:
+        print("Warning: object is empty. Sorting aborted.")
+        return
+
     sorted_list = sorted(input_object, key=key, reverse=reverse)
-    sortkey_list = [key(item) for item in sorted_list]
 
     new_sorted_list = list()
 
-    current_sortkey = sortkey_list[0]
+    sortkey = key(sorted_list[0])
     item_sublist = [sorted_list[0]]
 
-    for item, sortkey in zip(sorted_list[1:], sortkey_list[1:]):
-        if sortkey == current_sortkey:
+    for item in sorted_list[1:]:
+        current_sortkey = key(item)
+        if current_sortkey == sortkey:
             item_sublist.append(item)
         else:
-            new_sorted_list += sorted(item_sublist, key=alphaby)
+            new_sorted_list.extend(sorted(item_sublist, key=alphaby))
 
             item_sublist = list()
-            current_sortkey = sortkey
+            sortkey = current_sortkey
 
     if item_sublist:
-        new_sorted_list += sorted(item_sublist)
+        new_sorted_list.extend(sorted(item_sublist, key=alphaby))
 
     return new_sorted_list
+
+# not yet used, still at experimental stage. J Lee, 2015/8/5
+def OutputLargeDictOfKeyToCount(outfilename, inputdict,
+                                sortkey=lambda x:x, reverse=False,
+                                keyformat=lambda x: str(x),
+                                append=False):
+    inputdictSortedList = sorted_alphabetized([(keyformat(k), v)
+                                               for k, v in inputdict.items()],
+                                              key=sortkey, reverse=reverse)
+
+    if append:
+        open_parameter = "a" # append existing file
+    else:
+        open_parameter = "w" # write new file
+
+    max_key_length = max([len(k) for k, v in inputdictSortedList])
+
+    with outfilename.open(open_parameter) as f:
+        for k, v in inputdictSortedList:
+            print("{} {}".format(k.ljust(max_key_length), v), file=f)
 
 
 def OutputLargeDict(outfilename, inputdict,

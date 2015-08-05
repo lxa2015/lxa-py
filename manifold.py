@@ -21,9 +21,9 @@ from manifold_module import (GetMyWords, GetContextArray,
                              Normalize, compute_incidence_graph,
                              compute_laplacian, GetEigenvectors,
                              compute_words_distance, compute_closest_neighbors,
-                             compute_WdToSharedcntxtsofneighbors,
-                             output_WdToSharedcntxtsofneighbors,
-                             GetMyGraph)
+                             compute_WordToSharedContextsOfNeighbors,
+                             output_WordToSharedContextsOfNeighbors,
+                             GetMyGraph, output_ImportantContextToWords)
 import ngrams
 import lxa5
 
@@ -145,6 +145,9 @@ def main(language, corpus, datafolder,
     outfilenameNeighborGraph = Path(outfolder, corpusName + \
                                     "_nearest_neighbors.gexf")
 
+    outfilenameImportantContextToWords = Path(outfolder, corpusName + \
+                                              "_ImportantContextToWords.txt")
+
     outWordToContexts_json = Path(outcontextsfolder, corpusName + \
                                        "_WordToContexts.json")
 
@@ -154,10 +157,9 @@ def main(language, corpus, datafolder,
     print("Reading bigrams/trigrams and computing context array...", flush=True)
 
     context_array, contextdict, \
-    WordToContexts, ContextToWords = GetContextArray(corpus, 
+    WordToContexts, ContextToWords = GetContextArray(
                                    nWordsForAnalysis, worddict,
-                                   infileBigramsname, infileTrigramsname,
-                                   create_WordToContexts, create_ContextToWords)
+                                   infileBigramsname, infileTrigramsname)
 
     print("Computing shared context master matrix...", flush=True)
     CountOfSharedContexts = context_array.dot(context_array.T).todense()
@@ -219,18 +221,24 @@ def main(language, corpus, datafolder,
     json_pdump(WordToNeighbors_by_str, WordToNeighbors_json.open("w"), asis=True)
 
     print("Computing shared contexts among neighbors...", flush=True)
-    WdToSharedcntxtsofneighbors = compute_WdToSharedcntxtsofneighbors(
+    WordToSharedContextsOfNeighbors, \
+    ImportantContextToWords = compute_WordToSharedContextsOfNeighbors(
                                         nWordsForAnalysis, WordToContexts,
                                         WordToNeighbors, ContextToWords,
                                         nNeighbors, mincontexts)
 
-    output_WdToSharedcntxtsofneighbors(outfilenameSharedcontexts,
-                                        WdToSharedcntxtsofneighbors,
+    output_WordToSharedContextsOfNeighbors(outfilenameSharedcontexts,
+                                        WordToSharedContextsOfNeighbors,
                                         worddict, contextdict,
                                         nWordsForAnalysis)
 
+    output_ImportantContextToWords(outfilenameImportantContextToWords,
+                                   ImportantContextToWords,
+                                   contextdict, worddict)
+
     outputfilelist = [outfilenameNeighbors, outfilenameNeighborGraph,
-                      WordToNeighbors_json, outfilenameSharedcontexts]
+                      WordToNeighbors_json, outfilenameSharedcontexts,
+                      outfilenameImportantContextToWords]
 
     if create_WordToContexts:
         outputfilelist.append(outWordToContexts_json)

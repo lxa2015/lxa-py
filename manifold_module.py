@@ -69,79 +69,93 @@ def GetMyGraph(WordToNeighbors_by_str, useWeights=None):
     return G
 
 
-def GetContextArray(corpus, nwords, worddict,
-                    infileBigramsname, infileTrigramsname,
-                    create_WordToContexts, create_ContextToWords):
+def GetContextArray(nwords, worddict,
+                    infileBigramsname, infileTrigramsname):
 
-    WordToContexts = defaultdict(Counter)
-    ContextToWords = defaultdict(Counter)
-
+    # this is necessary so we can reference variables from inner functions
     class Namespace:
         pass
-    ns = Namespace() # this is necessary so we can reference ncontexts from inner functions
+    ns = Namespace()
+    # more notes: We use "ncontexts" to keep track of how many unique contexts
+    # there are. Conveniently, ncontexts also serves to provide a unique context
+    # index whenever the program encounters a new context. The dummy class
+    # Namespace is to make it possible that we can refer to and update ncontexts
+    # within inner functions (both "contexts_incr" and "addword")
+    # inside this "GetContextArray" function.
+
     ns.ncontexts = 0
     def contexts_incr():
         tmp = ns.ncontexts
         ns.ncontexts += 1
         return tmp
+
     contextdict = defaultdict(contexts_incr)
+    # key: context (tuple, e.g. ("of", "_", "cat") as a trigram context for "the"
+    # value: context index (int)
+    # This dict is analogous to worddict, where each key is a word (str)
+    # and each value is a word index (int).
 
     # entries for sparse matrix
     rows = []
     cols = []
     vals = [] 
 
-    def addword(word, context):
-        w = worddict[word]
-        c = contextdict[context]
+    WordToContexts = defaultdict(Counter)
+    ContextToWords = defaultdict(Counter)
+
+    def addword(word, context, occurrence_count):
+        w = worddict[word] # w is a word index
+        c = contextdict[context] # c is a context index
         rows.append(w)
         cols.append(c)
         vals.append(1)
 
-        WordToContexts[w].update([c])
-        ContextToWords[c].update([w])
+        WordToContexts[w][c] += occurrence_count
+        ContextToWords[c][w] += occurrence_count
 
     with infileTrigramsname.open() as trigramfile:
         for line in trigramfile:
             line = line.strip()
-            if (not line) or line.startswith('#') or hasGooglePOSTag(line, corpus):
+            if (not line) or line.startswith('#'):
                 continue
             c = line.split()
 
             word1 = c[0]
             word2 = c[1]
             word3 = c[2]
+            occurrence_count = int(c[3])
 
             context1 = tuple(['_', word2, word3])
             context2 = tuple([word1, '_', word3])
             context3 = tuple([word1, word2, '_'])
 
             if worddict.get(word1) is not None:
-                addword(word1, context1)
+                addword(word1, context1, occurrence_count)
             if worddict.get(word2) is not None:
-                addword(word2, context2)
+                addword(word2, context2, occurrence_count)
             if worddict.get(word3) is not None:
-                addword(word3, context3)
+                addword(word3, context3, occurrence_count)
 
     with infileBigramsname.open() as bigramfile:
         for line in bigramfile:
             line = line.strip()
-            if (not line) or line.startswith('#') or hasGooglePOSTag(line, corpus):
+            if (not line) or line.startswith('#'):
                 continue
             c = line.split()
 
             word1 = c[0]
             word2 = c[1]
+            occurrence_count = int(c[2])
 
             context1 = tuple(['_', word2])
             context2 = tuple([word1, '_'])
 
             if worddict.get(word1) is not None:
-                addword(word1, context1)
+                addword(word1, context1, occurrence_count)
             if worddict.get(word2) is not None:
-                addword(word2, context2)
+                addword(word2, context2, occurrence_count)
 
-    return ( sp.csr_matrix((vals,(rows,cols)), shape=(nwords, ns.ncontexts) ),
+    return ( sp.csr_matrix((vals,(rows,cols)), shape=(nwords, ns.ncontexts+1) ),
              contextdict, WordToContexts, ContextToWords )
 
 
@@ -194,32 +208,42 @@ def GetEigenvectors(laplacian):
     return sl.eigs(laplacian_sparse)
 
 
-def compute_WdToSharedcntxtsofneighbors(nWordsForAnalysis, WordToContexts,
+def compute_WordToSharedContextsOfNeighbors(nWordsForAnalysis, WordToContexts,
                                         WordToNeighbors, ContextToWords,
                                         nNeighbors, mincontexts):
 
-    WdToSharedcntxtsofneighbors = dict()
+    WordToSharedContextsOfNeighbors = dict()
 
     for word in range(nWordsForAnalysis):
-        WdToSharedcntxtsofneighbors[word] = dict()
+        WordToSharedContextsOfNeighbors[word] = dict()
 
-        neighbors = WordToNeighbors[word] # set of neighbor indices
-        contexts = WordToContexts[word] # set of context indices of current word
+        neighbors = WordToNeighbors[word] # list of neighbor indices
 
-        for context in contexts:
-            WdToSharedcntxtsofneighbors[word][context] = list()
+        for context in WordToContexts[word].keys():
+            WordToSharedContextsOfNeighbors[word][context] = list()
 
             for neighbor in neighbors:
                 if neighbor in ContextToWords[context]:
-                    WdToSharedcntxtsofneighbors[word][context].append(neighbor)
+                    WordToSharedContextsOfNeighbors[word][context].append(neighbor)
 
-            if len(WdToSharedcntxtsofneighbors[word][context]) < mincontexts:
-                del WdToSharedcntxtsofneighbors[word][context]
+            if len(WordToSharedContextsOfNeighbors[word][context]) < mincontexts:
+                del WordToSharedContextsOfNeighbors[word][context]
 
-    return WdToSharedcntxtsofneighbors
+    ImportantContextToWords = dict()
+    for word in range(nWordsForAnalysis):
+        for context in WordToSharedContextsOfNeighbors[word].keys():
+            NumberOfTimesThisWordOccursInThisContext = ContextToWords[context][word]
+            if NumberOfTimesThisWordOccursInThisContext >= 1:
+                if context not in ImportantContextToWords:
+                    ImportantContextToWords[context] = dict()
 
-def output_WdToSharedcntxtsofneighbors(outfilenameSharedcontexts,
-                                        WdToSharedcntxtsofneighbors,
+                ImportantContextToWords[context][word] = NumberOfTimesThisWordOccursInThisContext
+
+    return (WordToSharedContextsOfNeighbors, ImportantContextToWords)
+
+
+def output_WordToSharedContextsOfNeighbors(outfilenameSharedcontexts,
+                                        WordToSharedContextsOfNeighbors,
                                         worddict, contextdict,
                                         nWordsForAnalysis):
 
@@ -229,7 +253,7 @@ def output_WdToSharedcntxtsofneighbors(outfilenameSharedcontexts,
     with outfilenameSharedcontexts.open("w") as f:
         for word_idx in range(nWordsForAnalysis):
 
-            ContextToNeighbors = WdToSharedcntxtsofneighbors[word_idx] # a dict
+            ContextToNeighbors = WordToSharedContextsOfNeighbors[word_idx] # a dict
 
             ContextToNeighbors = sorted(ContextToNeighbors.items())
             ContextToNeighbors = sorted_alphabetized(ContextToNeighbors,
@@ -252,6 +276,46 @@ def output_WdToSharedcntxtsofneighbors(outfilenameSharedcontexts,
                 print("          {:20} | {}".format(context, neighbors), file=f)
 
             print(file=f)
+
+
+def output_ImportantContextToWords(outfilename, ImportantContextToWords,
+                                   contextdict, worddict):
+
+    _contextdict = {v:k for k,v in contextdict.items()} # from index to context tuple
+    _worddict = {v:k for k,v in worddict.items()} # from index to word
+    ImportantContextToWords_sorted = sorted_alphabetized(
+                                        ImportantContextToWords.items(),
+                                        key=lambda x: len(x[1]), reverse=True)
+
+    context_str_list = [" ".join(_contextdict[context_index])
+                        for context_index, v in ImportantContextToWords_sorted]
+    max_key_length = max([len(x) for x in context_str_list])
+
+    WordToCount_list = [WordToCount for _, WordToCount in ImportantContextToWords_sorted]
+
+    with outfilename.open("w") as f:
+        for context_str, WordToCount in zip(context_str_list, WordToCount_list):
+            print("{} {}".format(context_str.ljust(max_key_length),
+                                 len(WordToCount)), file=f)
+        print(file=f)
+
+        for context_str, WordToCount in zip(context_str_list, WordToCount_list):
+            print("\n===============================================\n", file=f)
+            print("{} {}".format(context_str.ljust(max_key_length),
+                                 len(WordToCount)), file=f)
+            print(file=f)
+
+            # small bug to fix: sorted_alphabetized can't output all items (!)
+            #       for unknown reasons. The good old "sorted" function is
+            #       used for now -- J Lee, 2015/8/5
+            WordToCount_sorted = sorted(WordToCount.items(),
+                                    key=lambda x :x[1], reverse=True)
+
+            max_word_length = max([len(_worddict[w]) for w, c in WordToCount_sorted])
+
+            for w, c in WordToCount_sorted:
+                print("        {} {}".format(
+                                _worddict[w].ljust(max_word_length), c), file=f)
 
 
 #------------------------------------------------------------------------------#
