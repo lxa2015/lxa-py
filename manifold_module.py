@@ -233,7 +233,7 @@ def compute_WordToSharedContextsOfNeighbors(nWordsForAnalysis, WordToContexts,
     for word in range(nWordsForAnalysis):
         for context in WordToSharedContextsOfNeighbors[word].keys():
             NumberOfTimesThisWordOccursInThisContext = ContextToWords[context][word]
-            if NumberOfTimesThisWordOccursInThisContext >= 1:
+            if NumberOfTimesThisWordOccursInThisContext >= mincontexts:
                 if context not in ImportantContextToWords:
                     ImportantContextToWords[context] = dict()
 

@@ -62,8 +62,10 @@ def makeArgParser(configfilename="config.json"):
     parser.add_argument("--nEigenvectors", help="Number of eigenvectors",
                         type=int, default=11)
 
-    parser.add_argument("--mincontexts", help="Minimum number of neighbors "
-                                              "with shared contexts",
+    parser.add_argument("--mincontexts", help="Minimum number of times that "
+                        "a word occurs in a context (for ImportantContextToWords); "
+                        "also minimum number of neighbors for a word that share "
+                        "a context (for WordToSharedContextsOfNeighbors)",
                         type=int, default=5)
     parser.add_argument("--wordtocontexts", help="create the WordToContexts dict?",
                         type=bool, default=False)
