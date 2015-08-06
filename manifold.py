@@ -78,9 +78,9 @@ def makeArgParser(configfilename="config.json"):
 
 
 def main(language, corpus, datafolder,
-         maxwordtypes, nNeighbors, nEigenvectors, 
-         create_WordToContexts, create_ContextToWords, mincontexts,
-         usesigtransforms):
+         maxwordtypes=1000, nNeighbors=9, nEigenvectors=11, 
+         create_WordToContexts=False, create_ContextToWords=False,
+         mincontexts=5, usesigtransforms=True):
 
     corpusStem = Path(corpus).stem
 
@@ -138,14 +138,12 @@ def main(language, corpus, datafolder,
 
     corpusName = corpusStem + '_' + str(nWordsForAnalysis) + '_' + str(nNeighbors)
 
-    outfilenameNeighbors = Path(outfolder, corpusName + \
-                                "_nearest_neighbors.txt")
+    outfilenameNeighbors = Path(outfolder, corpusName + "_neighbors.txt")
 
     outfilenameSharedcontexts = Path(outfolder, corpusName + \
                                 "_shared_contexts.txt")
 
-    outfilenameNeighborGraph = Path(outfolder, corpusName + \
-                                    "_nearest_neighbors.gexf")
+    outfilenameNeighborGraph = Path(outfolder, corpusName + "_neighbors.gexf")
 
     outfilenameImportantContextToWords = Path(outfolder, corpusName + \
                                               "_ImportantContextToWords.txt")
