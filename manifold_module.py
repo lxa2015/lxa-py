@@ -255,6 +255,9 @@ def output_WordToSharedContextsOfNeighbors(outfilenameSharedcontexts,
 
             ContextToNeighbors = WordToSharedContextsOfNeighbors[word_idx] # a dict
 
+            if not ContextToNeighbors:
+                continue
+
             ContextToNeighbors = sorted(ContextToNeighbors.items())
             ContextToNeighbors = sorted_alphabetized(ContextToNeighbors,
                                         key=lambda x: len(x[1]), reverse=True,
@@ -300,6 +303,9 @@ def output_ImportantContextToWords(outfilename, ImportantContextToWords,
         print(file=f)
 
         for context_str, WordToCount in zip(context_str_list, WordToCount_list):
+            if not WordToCount:
+                continue
+
             print("\n===============================================\n", file=f)
             print("{} {}".format(context_str.ljust(max_key_length),
                                  len(WordToCount)), file=f)
