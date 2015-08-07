@@ -4,7 +4,8 @@ from collections import Counter
 import argparse
 from pathlib import Path
 
-from lxa5lib import (get_language_corpus_datafolder, stdout_list)
+from lxa5lib import (get_language_corpus_datafolder, stdout_list,
+                     load_config_for_command_line_help)
 
 #------------------------------------------------------------------------------#
 #
@@ -17,18 +18,30 @@ from lxa5lib import (get_language_corpus_datafolder, stdout_list)
 #
 #------------------------------------------------------------------------------#
 
-def makeArgParser():
+def makeArgParser(configfilename="config.json"):
+
+    language, \
+    corpus, \
+    datafolder, \
+    configtext = load_config_for_command_line_help(configfilename)
+
     parser = argparse.ArgumentParser(
-        description="This program extracts ngrams from a corpus.",
+        description="This program extracts ngrams from a corpus.\n\n{}"
+                    .format(configtext),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument("--config", help="configuration filename",
+                        type=str, default=configfilename)
+
     parser.add_argument("--language", help="Language name",
                         type=str, default=None)
     parser.add_argument("--corpus", help="Corpus file to use",
                         type=str, default=None)
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
+
     parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
-                        " if this is zero, then the program counts "
+                        " if this is zero, then the program reads "
                         "all word tokens in the corpus",
                         type=int, default=0)
     return parser
@@ -47,7 +60,7 @@ def main(language, corpus, datafolder, maxwordtokens=0):
         outfolderDx1.mkdir(parents=True)
 
     if maxwordtokens:
-        corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
+        corpusName = Path(corpus).stem + "_{}-tokens".format(maxwordtokens)
     else:
         corpusName = Path(corpus).stem
 
@@ -75,14 +88,14 @@ def main(language, corpus, datafolder, maxwordtokens=0):
             line = line.lower().replace('\n', '').replace('\r', '')
 
             # TODO: modify/combine these with "scrubbing", cf. Alchemist and Lxa4
-            line = line.replace(".", " .")
-            line = line.replace(",", " ,")
-            line = line.replace(";", " ;")
-            line = line.replace("!", " !")
-            line = line.replace("?", " ?")
-            line = line.replace(":", " :")
-            line = line.replace(")", " )")
-            line = line.replace("(", "( ")
+            line = line.replace(".", " . ")
+            line = line.replace(",", " , ")
+            line = line.replace(";", " ; ")
+            line = line.replace("!", " ! ")
+            line = line.replace("?", " ? ")
+            line = line.replace(":", " : ")
+            line = line.replace(")", " ) ")
+            line = line.replace("(", " ( ")
 
             words = line.split()
             lenWords = len(words)
@@ -164,8 +177,14 @@ if __name__ == "__main__":
 
     maxwordtokens = args.maxwordtokens
 
+    description="You are running {}.\n".format(__file__) + \
+                "This program extracts word n-grams.\n" + \
+                "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
+
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                                   args.corpus, args.datafolder)
+                                      args.corpus, args.datafolder, args.config,
+                                      description=description,
+                                      scriptname=__file__)
 
     main(language, corpus, datafolder, maxwordtokens)
 
