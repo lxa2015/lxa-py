@@ -32,7 +32,7 @@ def MakeAffixToSigs(sig_to_stems):
 
     return affix_to_sigs
 
-
+# remove this function?
 def read_word_freq_file(infilename: Path,
                         maxwordtokens=0,
                         casefold=True) -> Counter:

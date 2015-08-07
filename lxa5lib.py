@@ -20,6 +20,28 @@ SEP_SIGTRANSFORM = "." # separator between sig and affix (NULL-s-ed-ing.ed)
 #    general functions used by various lxa5 components
 #------------------------------------------------------------------------------#
 
+def determine_use_corpus():
+    """determine if a corpus text or a wordlist is used as input dataset"""
+    while True:
+        user_input = input("\nWhat kind of input data are you using? "
+                           "[\"c\" = corpus text, \"w\" = wordlist]\n>>> ")
+        user_input = user_input.strip().casefold()
+        if user_input and user_input in {"c", "w"}:
+            if user_input == "c":
+                return True
+            else:
+                # user_input is "w" (wordlist)
+                return False
+        else:
+            print("Invalid user input.")
+
+
+# a function with a more transparent name, without removing
+# "read_corpus_file" below for now (not sure if it's used elsewhere)
+def read_word_freq(infilename: Path, casefold=True):
+    return read_corpus_file(infilename, casefold)
+
+# rename this function? (we *are* using this function, via "read_word_freq" above)
 def read_corpus_file(corpus_path: Path, casefold=True) -> Counter:
     with corpus_path.open() as corpus_file:
         lines = corpus_file.readlines()
@@ -38,11 +60,11 @@ def read_corpus_file(corpus_path: Path, casefold=True) -> Counter:
             word = word.casefold()
 
         # if additional information (e.g. frequency) is present
-        if rest:
+        try:
+            # if freq is present
             freq = int(rest[0])
-
-        # if not, default to 1
-        else:
+        except (IndexError, ValueError):
+            # if not, freq default to 1
             freq = 1
 
         word_frequencies[word] += freq

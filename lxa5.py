@@ -9,6 +9,7 @@
 import argparse
 import time
 from pathlib import Path
+import sys
 
 from lxa5_module import (read_word_freq_file, MakeBiSignatures,
                          MakeStemToWords,
@@ -18,7 +19,10 @@ from lxa5_module import (read_word_freq_file, MakeBiSignatures,
 
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
                      changeFilenameSuffix, stdout_list, OutputLargeDict,
-                     load_config_for_command_line_help)
+                     load_config_for_command_line_help,
+                     determine_use_corpus, read_word_freq)
+
+import ngrams
 
 #------------------------------------------------------------------------------#
 #        user modified variables
@@ -70,7 +74,7 @@ def makeArgParser(configfilename="config.json"):
                         type=int, default=0)
     return parser
 
-
+# remove this function?
 def create_wordlist(language, filename, datafolder,
                     minimum_stem_length=None, maxwordtokens=0):
     ngram_path = Path(datafolder, language, 'ngrams')
@@ -84,12 +88,7 @@ def create_wordlist(language, filename, datafolder,
 
 def main(language, corpus, datafolder,
          MinimumStemLength=4, MaximumAffixLength=3, MinimumNumberofSigUses=5,
-         maxwordtokens=0):
-
-    if maxwordtokens:
-        corpusName = Path(corpus).stem + "-" + str(maxwordtokens)
-    else:
-        corpusName = Path(corpus).stem
+         maxwordtokens=0, user_corpus=True):
 
     # -------------------------------------------------------------------------#
     #       decide suffixing or prefixing
@@ -111,8 +110,34 @@ def main(language, corpus, datafolder,
     else:
         FindSuffixesFlag = False  # prefixal
 
-    wordlist, wordFreqDict = create_wordlist(language, corpus, datafolder,
-                                             maxwordtokens=maxwordtokens)
+    if user_corpus:
+        if maxwordtokens:
+            word_token_suffix = "_{}-tokens".format(maxwordtokens)
+            warning = " ({} tokens)".format(maxwordtokens)
+        else:
+            word_token_suffix = ""
+            warning = ""
+
+        corpus_stem = Path(corpus).stem + word_token_suffix
+
+        wordlist_path = Path(datafolder, language, "ngrams",
+                             corpus_stem + "_words.txt")
+
+        if not wordlist_path.exists():
+            print("Wordlist for {}{} not found.\n"
+                  "ngrams.py is now run.\n".format(corpus, warning))
+            ngrams.main(language, corpus, datafolder, maxwordtokens)
+
+    else:
+        corpus_stem = Path(corpus).stem
+        wordlist_path = Path(datafolder, language, corpus)
+
+        if not wordlist_path.exists():
+            sys.exit("The specified wordlist ""\n"
+                     "is not found.".format(wordlist_path))
+
+    wordFreqDict = read_word_freq(wordlist_path)
+    wordlist = sorted(wordFreqDict.keys())
 
     outfolder = Path(datafolder, language, 'lxa')
 
@@ -120,10 +145,10 @@ def main(language, corpus, datafolder,
         outfolder.mkdir(parents=True)
 
     # TODO -- filenames not yet used in main()
-    outfile_Signatures_name = str(outfolder) + corpusName + "_Signatures.txt"
-    outfile_SigTransforms_name = str(outfolder) + corpusName + "_SigTransforms.txt"
-    outfile_FSA_name = str(outfolder) + corpusName + "_FSA.txt"
-    outfile_FSA_graphics_name = str(outfolder) + corpusName + "_FSA_graphics.png"
+    outfile_Signatures_name = str(outfolder) + corpus_stem + "_Signatures.txt"
+    outfile_SigTransforms_name = str(outfolder) + corpus_stem + "_SigTransforms.txt"
+    outfile_FSA_name = str(outfolder) + corpus_stem + "_FSA.txt"
+    outfile_FSA_graphics_name = str(outfolder) + corpus_stem + "_FSA_graphics.png"
 
     # -------------------------------------------------------------------------#
     #   create: BisigToTuple
@@ -171,7 +196,7 @@ def main(language, corpus, datafolder,
     #      output stem file
     # -------------------------------------------------------------------------#
 
-    stemfilename = Path(outfolder, '{}_StemToWords.txt'.format(corpusName))
+    stemfilename = Path(outfolder, '{}_StemToWords.txt'.format(corpus_stem))
     OutputLargeDict(stemfilename, StemToWords, key=lambda x: len(x[1]),
                     reverse=True, summary=True,
                     min_cell_width=25, howmanyperline=5)
@@ -182,7 +207,7 @@ def main(language, corpus, datafolder,
     #      output affix file
     # -------------------------------------------------------------------------#
 
-    affixfilename = Path(outfolder, '{}_AffixToSigs.txt'.format(corpusName))
+    affixfilename = Path(outfolder, '{}_AffixToSigs.txt'.format(corpus_stem))
     OutputLargeDict(affixfilename, AffixToSigs, min_cell_width=25,
                     key=lambda x: len(x[1]), reverse=True,
                     howmanyperline=5, SignatureValues=True)
@@ -191,7 +216,7 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
     #   pickle SigToStems # TODO: probably switching to json
     # -------------------------------------------------------------------------#
-    #    SigToStems_pkl_fname = Path(outfolder, corpusName + "_SigToStems.pkl")
+    #    SigToStems_pkl_fname = Path(outfolder, corpus_stem + "_SigToStems.pkl")
     #    with SigToStems_pkl_fname.open('wb') as f:
     #        pickle.dump(SigToStems, f)
     #    print('===> pickle file generated:', SigToStems_pkl_fname, flush=True)
@@ -201,7 +226,7 @@ def main(language, corpus, datafolder,
     #   output SigToStems
     # -------------------------------------------------------------------------#
 
-    SigToStems_outfilename = Path(outfolder, corpusName + "_SigToStems.txt")
+    SigToStems_outfilename = Path(outfolder, corpus_stem + "_SigToStems.txt")
     OutputLargeDict(SigToStems_outfilename, SigToStems, key=lambda x: len(x[1]),
                     reverse=True,
                     howmanyperline=5, SignatureKeys=True)
@@ -218,7 +243,7 @@ def main(language, corpus, datafolder,
     #   output WordToSigs
     # -------------------------------------------------------------------------#
 
-    WordToSigs_outfilename = Path(outfolder, corpusName + "_WordToSigs.txt")
+    WordToSigs_outfilename = Path(outfolder, corpus_stem + "_WordToSigs.txt")
     OutputLargeDict(WordToSigs_outfilename, WordToSigs, key=lambda x: len(x[1]),
                     reverse=True,
                     min_cell_width=25, SignatureValues=True)
@@ -236,7 +261,7 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     WordToSigtransforms_outfilename = Path(outfolder,
-                                        corpusName + "_WordToSigtransforms.txt")
+                                        corpus_stem + "_WordToSigtransforms.txt")
     OutputLargeDict(WordToSigtransforms_outfilename, WordToSigtransforms,
                     min_cell_width=25, sigtransforms=True,
                     key=lambda x: len(x[1]), reverse=True)
@@ -256,7 +281,7 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     mostFreqWordsNotInSigs_outfilename = Path(outfolder,
-                                              corpusName +
+                                              corpus_stem +
                                               "_mostFreqWordsNotInSigs.txt")
 
     with mostFreqWordsNotInSigs_outfilename.open('w') as f:
@@ -275,7 +300,7 @@ def main(language, corpus, datafolder,
     #   output the word types in induced paradigms
     # -------------------------------------------------------------------------#
 
-    WordsInSigs_outfilename = Path(outfolder, corpusName + "_WordsInSigs.txt")
+    WordsInSigs_outfilename = Path(outfolder, corpus_stem + "_WordsInSigs.txt")
 
     with WordsInSigs_outfilename.open('w') as f:
 
@@ -295,7 +320,7 @@ def main(language, corpus, datafolder,
     # -------------------------------------------------------------------------#
 
     WordsNotInSigs_outfilename = Path(outfolder,
-                                      corpusName + "_WordsNotInSigs.txt")
+                                      corpus_stem + "_WordsNotInSigs.txt")
 
     with WordsNotInSigs_outfilename.open('w') as f:
 
@@ -328,7 +353,7 @@ def to_be_handled():
 
     # July 15, 2014, Jackson Lee
 
-    outfile_Signatures_name_JL = outfolder + corpusName + "_Signatures-JL.txt"
+    outfile_Signatures_name_JL = outfolder + corpus_stem + "_Signatures-JL.txt"
     Signatures_outfile_JL = open(outfile_Signatures_name_JL, 'w')
 
 
@@ -337,7 +362,7 @@ def to_be_handled():
     #       write log file header | TODO keep this part or rewrite?
     # ------------------------------------------------------------------------------#
 
-    #    outfile_log_name            = outfolder + corpusName + "_log.txt"
+    #    outfile_log_name            = outfolder + corpus_stem + "_log.txt"
     #    log_file = open(outfile_log_name, "w")
     #    print("Language:", language, file=log_file)
     #    print("Minimum Stem Length:", MinimumStemLength,
@@ -502,7 +527,7 @@ def to_be_handled():
         print("Printed graph", str(loop), "before_merger")
         graph = morphology.createDoublePySubgraph(state1, state2)
         graph.layout(prog='dot')
-        filename = outfolder + corpusName + str(loop) + '_before_merger' + str(state1.index) + "-" + str(
+        filename = outfolder + corpus_stem + str(loop) + '_before_merger' + str(state1.index) + "-" + str(
             state2.index) + '.png'
         graph.draw(filename)
 
@@ -590,6 +615,8 @@ if __name__ == "__main__":
                 "MinimumNumberofSigUses = {}\n".format(MinimumNumberofSigUses) + \
                 "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
 
+    use_corpus = determine_use_corpus()
+
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                       args.corpus, args.datafolder, args.config,
                                       description=description,
@@ -597,5 +624,5 @@ if __name__ == "__main__":
 
     main(language, corpus, datafolder,
          MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
-         maxwordtokens)
+         maxwordtokens, use_corpus)
 
