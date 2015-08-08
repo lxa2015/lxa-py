@@ -7,7 +7,7 @@ from pathlib import Path
 from distutils.util import strtobool
 from collections import OrderedDict
 from pprint import pprint
-from itertools import zip_longest
+from itertools import (zip_longest, groupby)
 
 #------------------------------------------------------------------------------#
 #    constants
@@ -357,32 +357,23 @@ def stdout_list(header, *args):
 
 
 def sorted_alphabetized(input_object, key=lambda x: x, reverse=False,
-                        alphaby=lambda x:x):
+                        subkey=lambda x:x, subreverse=False):
     if not input_object:
         print("Warning: object is empty. Sorting aborted.")
         return
 
+    new_sorted_list = list()
     sorted_list = sorted(input_object, key=key, reverse=reverse)
 
-    new_sorted_list = list()
+    for k, group in groupby(sorted_list, key=key): # groupby from itertools
 
-    sortkey = key(sorted_list[0])
-    item_sublist = [sorted_list[0]]
+        # must use "list(group)", cannot use just "group"!
+        sublist = sorted(list(group), key=subkey, reverse=subreverse)
 
-    for item in sorted_list[1:]:
-        current_sortkey = key(item)
-        if current_sortkey == sortkey:
-            item_sublist.append(item)
-        else:
-            new_sorted_list.extend(sorted(item_sublist, key=alphaby))
-
-            item_sublist = list()
-            sortkey = current_sortkey
-
-    if item_sublist:
-        new_sorted_list.extend(sorted(item_sublist, key=alphaby))
+        new_sorted_list.extend(sublist)
 
     return new_sorted_list
+
 
 # not yet used, still at experimental stage. J Lee, 2015/8/5
 def OutputLargeDictOfKeyToCount(outfilename, inputdict,
@@ -423,18 +414,19 @@ def OutputLargeDict(outfilename, inputdict,
     nItems = len(inputdictSortedList)
 
     if SignatureKeys:
-        input_keys = ['-'.join(k) for k,v in inputdictSortedList]
+        input_keys = [SEP_SIG.join(k) for k,v in inputdictSortedList]
     else:
         input_keys = [k for k,v in inputdictSortedList]
 
     if SignatureValues:
-        input_values = [sorted(['-'.join(x) for x in v])
+        input_values = [sorted([SEP_SIG.join(x) for x in v])
                         for k,v in inputdictSortedList]
     elif not sigtransforms:
         input_values = [sorted(v) for k,v in inputdictSortedList]
     else:
         # sigtransforms is True
-        input_values = [sorted(['-'.join(sig) + SEP_SIGTRANSFORM + affix for sig, affix in v])
+        input_values = [sorted([SEP_SIG.join(sig) + SEP_SIGTRANSFORM + affix
+                                for sig, affix in v])
                         for k,v in inputdictSortedList]
 
     max_key_length = max([len(x) for x in input_keys])

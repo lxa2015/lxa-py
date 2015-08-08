@@ -78,14 +78,11 @@ def main(language, corpus, datafolder, maxwordtokens=0):
     print('Reading the corpus file now...')
 
     with infilename.open() as f:
-        lines = f.readlines()
-
-        for line in lines:
+        for line in f.readlines():
             if not line:
                 continue
 
-            # to ensure that there are no unwanted end-of-line characters
-            line = line.lower().replace('\n', '').replace('\r', '')
+            line = line.strip().casefold()
 
             # TODO: modify/combine these with "scrubbing", cf. Alchemist and Lxa4
             line = line.replace(".", " . ")
@@ -108,11 +105,11 @@ def main(language, corpus, datafolder, maxwordtokens=0):
                 word2 = words[i+1]
                 word3 = words[i+2]
 
-                wordDict[word1] += 1
-                wordDict[word2] += 1
                 wordDict[word3] += 1
 
                 if i == 0:
+                    wordDict[word1] += 1
+                    wordDict[word2] += 1
                     bigram = word1 + sep + word2
                     bigramDict[bigram] += 1
 
@@ -131,6 +128,8 @@ def main(language, corpus, datafolder, maxwordtokens=0):
     intro_string = "# data source: {}\n# token count: {}".format(str(infilename),
                                                                    corpusCurrentSize)
 
+#    wordsSorted = sorted(wordDict.items(),
+#                                      key=lambda x: x[1], reverse=True)
     wordsSorted = sorted_alphabetized(wordDict.items(),
                                       key=lambda x: x[1], reverse=True)
 

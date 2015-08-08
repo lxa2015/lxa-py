@@ -20,7 +20,7 @@ from lxa5_module import (read_word_freq_file, MakeBiSignatures,
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
                      changeFilenameSuffix, stdout_list, OutputLargeDict,
                      load_config_for_command_line_help,
-                     determine_use_corpus, read_word_freq)
+                     determine_use_corpus, read_word_freq, sorted_alphabetized)
 
 import ngrams
 
@@ -198,7 +198,7 @@ def main(language, corpus, datafolder,
 
     stemfilename = Path(outfolder, '{}_StemToWords.txt'.format(corpus_stem))
     OutputLargeDict(stemfilename, StemToWords, key=lambda x: len(x[1]),
-                    reverse=True, summary=True,
+                    reverse=True,
                     min_cell_width=25, howmanyperline=5)
 
     print('===> stem file generated:', stemfilename, flush=True)
@@ -212,15 +212,6 @@ def main(language, corpus, datafolder,
                     key=lambda x: len(x[1]), reverse=True,
                     howmanyperline=5, SignatureValues=True)
     print('===> affix file generated:', affixfilename, flush=True)
-
-    # -------------------------------------------------------------------------#
-    #   pickle SigToStems # TODO: probably switching to json
-    # -------------------------------------------------------------------------#
-    #    SigToStems_pkl_fname = Path(outfolder, corpus_stem + "_SigToStems.pkl")
-    #    with SigToStems_pkl_fname.open('wb') as f:
-    #        pickle.dump(SigToStems, f)
-    #    print('===> pickle file generated:', SigToStems_pkl_fname, flush=True)
-    # -------------------------------------------------------------------------#
 
     # -------------------------------------------------------------------------#
     #   output SigToStems
@@ -280,18 +271,19 @@ def main(language, corpus, datafolder,
     #   output the most freq word types not in any induced paradigms {the, of..}
     # -------------------------------------------------------------------------#
 
+    wordFreqDict_sorted = sorted_alphabetized(wordFreqDict.items(),
+                                              key=lambda x: x[1], reverse=True)
+
     mostFreqWordsNotInSigs_outfilename = Path(outfolder,
                                               corpus_stem +
                                               "_mostFreqWordsNotInSigs.txt")
 
     with mostFreqWordsNotInSigs_outfilename.open('w') as f:
-
-        for (word, freq) in sorted(wordFreqDict.items(),
-                                   key=lambda x: x[1], reverse=True):
-            if word in WordToSigs:
-                break
-            else:
+        for (word, freq) in wordFreqDict_sorted:
+            if word not in WordToSigs:
                 print(word, freq, file=f)
+            else:
+                break
 
     print('===> output file generated:',
           mostFreqWordsNotInSigs_outfilename, flush=True)
@@ -303,14 +295,9 @@ def main(language, corpus, datafolder,
     WordsInSigs_outfilename = Path(outfolder, corpus_stem + "_WordsInSigs.txt")
 
     with WordsInSigs_outfilename.open('w') as f:
-
-        wordFreqInSigListSorted = [(word, freq) for (word, freq) in
-                                   sorted(wordFreqDict.items(),
-                                          key=lambda x: x[1], reverse=True)
-                                   if word in WordToSigs]
-
-        for (word, freq) in wordFreqInSigListSorted:
-            print(word, freq, file=f)
+        for (word, freq) in wordFreqDict_sorted:
+            if word in WordToSigs:
+                print(word, freq, file=f)
 
     print('===> output file generated:',
           WordsInSigs_outfilename, flush=True)
@@ -323,14 +310,9 @@ def main(language, corpus, datafolder,
                                       corpus_stem + "_WordsNotInSigs.txt")
 
     with WordsNotInSigs_outfilename.open('w') as f:
-
-        wordFreqInSigListSorted = [(word, freq) for (word, freq) in
-                                   sorted(wordFreqDict.items(),
-                                          key=lambda x: x[1], reverse=True)
-                                   if word not in WordToSigs]
-
-        for (word, freq) in wordFreqInSigListSorted:
-            print(word, freq, file=f)
+        for (word, freq) in wordFreqDict_sorted:
+            if word not in WordToSigs:
+                print(word, freq, file=f)
 
     print('===> output file generated:',
           WordsNotInSigs_outfilename, flush=True)
