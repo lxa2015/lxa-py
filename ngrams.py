@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 
 from lxa5lib import (get_language_corpus_datafolder, stdout_list,
-                     load_config_for_command_line_help)
+                     load_config_for_command_line_help, sorted_alphabetized)
 
 #------------------------------------------------------------------------------#
 #
@@ -131,14 +131,14 @@ def main(language, corpus, datafolder, maxwordtokens=0):
     intro_string = "# data source: {}\n# token count: {}".format(str(infilename),
                                                                    corpusCurrentSize)
 
-    wordsSorted = [x for x in wordDict.items()]
-    wordsSorted.sort(key=lambda x: x[1], reverse=True)
+    wordsSorted = sorted_alphabetized(wordDict.items(),
+                                      key=lambda x: x[1], reverse=True)
 
-    bigramsSorted = [x for x in bigramDict.items()]
-    bigramsSorted.sort(key=lambda x:x[1], reverse=True)
+    bigramsSorted = sorted_alphabetized(bigramDict.items(),
+                                        key=lambda x: x[1], reverse=True)
 
-    trigramsSorted = [x for x in trigramDict.items()]
-    trigramsSorted.sort(key=lambda x:x[1], reverse=True)
+    trigramsSorted = sorted_alphabetized(trigramDict.items(),
+                                         key=lambda x: x[1], reverse=True)
 
     with outfilenameWords.open('w') as f:
         print(intro_string, file=f)
