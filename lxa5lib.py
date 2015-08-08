@@ -213,7 +213,7 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
     # ask user if the program should proceed or not
 
     print("\nBased on these three values, the program is looking for the\n"
-          "following corpus file relative to the current directory:\n"
+          "following corpus file relative to the current directory:\n\n"
           "{}".format(testPath))
 
     print("\nIf any of {language, corpus, datafolder} or the expected corpus\n"

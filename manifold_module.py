@@ -261,9 +261,7 @@ def output_WordToSharedContextsOfNeighbors(outfilenameSharedcontexts,
             ContextToNeighbors = sorted(ContextToNeighbors.items())
             ContextToNeighbors = sorted_alphabetized(ContextToNeighbors,
                                         key=lambda x: len(x[1]), reverse=True,
-                                        alphaby=lambda x:x[1])
-            # minor TODO: sort by key alphabetically
-            #             *after* these sorting steps are done?
+                                        subkey=lambda x:x[1])
 
             # ContextToNeighbors is now a list of tuples, not a dict anymore
 
@@ -311,10 +309,7 @@ def output_ImportantContextToWords(outfilename, ImportantContextToWords,
                                  len(WordToCount)), file=f)
             print(file=f)
 
-            # small bug to fix: sorted_alphabetized can't output all items (!)
-            #       for unknown reasons. The good old "sorted" function is
-            #       used for now -- J Lee, 2015/8/5
-            WordToCount_sorted = sorted(WordToCount.items(),
+            WordToCount_sorted = sorted_alphabetized(WordToCount.items(),
                                     key=lambda x :x[1], reverse=True)
 
             max_word_length = max([len(_worddict[w]) for w, c in WordToCount_sorted])
