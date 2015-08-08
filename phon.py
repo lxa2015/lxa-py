@@ -7,7 +7,9 @@ from pathlib import Path
 import ngrams
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
                      changeFilenameSuffix, stdout_list,
-                     load_config_for_command_line_help)
+                     load_config_for_command_line_help,
+                     determine_use_corpus, get_wordlist_path_corpus_stem,
+                     sorted_alphabetized)
 
 #------------------------------------------------------------------------------#
 #
@@ -41,10 +43,16 @@ def makeArgParser(configfilename="config.json"):
                         type=str, default=None)
     parser.add_argument("--datafolder", help="path of the data folder",
                         type=str, default=None)
+
+    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
+                        " if this is zero, then the program counts "
+                        "all word tokens in the corpus",
+                        type=int, default=0)
     return parser
 
 
-def main(language, corpus, datafolder):
+def main(language, corpus, datafolder,
+         maxwordtokens=0, use_corpus=True):
 
     corpusName = Path(corpus).stem
 
@@ -53,10 +61,21 @@ def main(language, corpus, datafolder):
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
 
-    infilename = Path(datafolder, language, "ngrams", corpusName + "_words.txt")
+    infilename, corpusName = get_wordlist_path_corpus_stem(language, corpus,
+                                         datafolder, maxwordtokens, use_corpus)
 
     if not infilename.exists():
-        ngrams.main(language, corpus, datafolder)
+        if use_corpus:
+            if maxwordtokens:
+                warning = " ({} tokens)".format(maxwordtokens)
+            else:
+                warning = ""
+            print("\nWordlist for {}{} not found.\n"
+                  "ngrams.py is now run.\n".format(corpus, warning))
+            ngrams.main(language, corpus, datafolder, maxwordtokens)
+        else:
+            sys.exit("\nThe specified wordlist ""\n"
+                     "is not found.".format(infilename))
 
     outfilenamePhones = Path(outfolder, corpusName + "_phones.txt")
     outfilenameBiphones = Path(outfolder, corpusName + "_biphones.txt")
@@ -76,11 +95,15 @@ def main(language, corpus, datafolder):
             if not line or line.startswith("#"):
                 continue
 
-            # to ensure that there are no unwanted end-of-line characters
-            line = line.lower().replace('\n', '').replace('\r', '')
+            line = line.strip().casefold()
 
-            phones, freq = line.split()
-            freq = int(freq)
+            phones, *rest = line.split()
+
+            try:
+                freq = int(rest[0])
+            except (ValueError, IndexError):
+                freq = 1
+
             phones = "#{}#".format(phones) # add word boundaries
             lenPhones = len(phones)
 
@@ -90,11 +113,11 @@ def main(language, corpus, datafolder):
                 phone2 = phones[i+1]
                 phone3 = phones[i+2]
 
-                phoneDict[phone1] += freq
-                phoneDict[phone2] += freq
                 phoneDict[phone3] += freq
 
                 if i == 0:
+                    phoneDict[phone1] += freq
+                    phoneDict[phone2] += freq
                     biphone = phone1 + sep + phone2
                     biphoneDict[biphone] += freq
 
@@ -108,14 +131,14 @@ def main(language, corpus, datafolder):
 
     intro_string = "# data source: {}".format(str(infilename))
 
-    phonesSorted = [x for x in phoneDict.items()]
-    phonesSorted.sort(key=lambda x: x[1], reverse=True)
+    phonesSorted = sorted_alphabetized(phoneDict.items(),
+                                       key=lambda x: x[1], reverse=True)
 
-    biphonesSorted = [x for x in biphoneDict.items()]
-    biphonesSorted.sort(key=lambda x:x[1], reverse=True)
+    biphonesSorted = sorted_alphabetized(biphoneDict.items(),
+                                         key=lambda x: x[1], reverse=True)
 
-    triphonesSorted = [x for x in triphoneDict.items()]
-    triphonesSorted.sort(key=lambda x:x[1], reverse=True)
+    triphonesSorted = sorted_alphabetized(triphoneDict.items(),
+                                          key=lambda x: x[1], reverse=True)
 
     #--------------------------------------------------------------------------#
     # generate .txt output files
@@ -169,15 +192,20 @@ def main(language, corpus, datafolder):
 if __name__ == "__main__":
 
     args = makeArgParser().parse_args()
+    maxwordtokens = args.maxwordtokens
 
     description="You are running {}.\n".format(__file__) + \
-                "This program works on the phonology of the corpus text.\n"
+                "This program works on the phonology-related tasks.\n" + \
+                "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                       args.corpus, args.datafolder, args.config,
                                       description=description,
                                       scriptname=__file__)
 
-    main(language, corpus, datafolder)
+    use_corpus = determine_use_corpus()
+
+    main(language, corpus, datafolder,
+         maxwordtokens, use_corpus)
 
 

@@ -20,7 +20,8 @@ from lxa5_module import (read_word_freq_file, MakeBiSignatures,
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
                      changeFilenameSuffix, stdout_list, OutputLargeDict,
                      load_config_for_command_line_help,
-                     determine_use_corpus, read_word_freq, sorted_alphabetized)
+                     determine_use_corpus, read_word_freq,
+                     sorted_alphabetized, get_wordlist_path_corpus_stem)
 
 import ngrams
 
@@ -88,7 +89,7 @@ def create_wordlist(language, filename, datafolder,
 
 def main(language, corpus, datafolder,
          MinimumStemLength=4, MaximumAffixLength=3, MinimumNumberofSigUses=5,
-         maxwordtokens=0, user_corpus=True):
+         maxwordtokens=0, use_corpus=True):
 
     # -------------------------------------------------------------------------#
     #       decide suffixing or prefixing
@@ -110,30 +111,22 @@ def main(language, corpus, datafolder,
     else:
         FindSuffixesFlag = False  # prefixal
 
-    if user_corpus:
-        if maxwordtokens:
-            word_token_suffix = "_{}-tokens".format(maxwordtokens)
-            warning = " ({} tokens)".format(maxwordtokens)
-        else:
-            word_token_suffix = ""
-            warning = ""
+    wordlist_path, corpus_stem = get_wordlist_path_corpus_stem(language, corpus,
+                                         datafolder, maxwordtokens, use_corpus)
 
-        corpus_stem = Path(corpus).stem + word_token_suffix
+    print("wordlist file path:\n{}\n".format(wordlist_path))
 
-        wordlist_path = Path(datafolder, language, "ngrams",
-                             corpus_stem + "_words.txt")
-
-        if not wordlist_path.exists():
-            print("Wordlist for {}{} not found.\n"
+    if not wordlist_path.exists():
+        if use_corpus:
+            if maxwordtokens:
+                warning = " ({} tokens)".format(maxwordtokens)
+            else:
+                warning = ""
+            print("\nWordlist for {}{} not found.\n"
                   "ngrams.py is now run.\n".format(corpus, warning))
             ngrams.main(language, corpus, datafolder, maxwordtokens)
-
-    else:
-        corpus_stem = Path(corpus).stem
-        wordlist_path = Path(datafolder, language, corpus)
-
-        if not wordlist_path.exists():
-            sys.exit("The specified wordlist ""\n"
+        else:
+            sys.exit("\nThe specified wordlist ""\n"
                      "is not found.".format(wordlist_path))
 
     wordFreqDict = read_word_freq(wordlist_path)
@@ -597,12 +590,12 @@ if __name__ == "__main__":
                 "MinimumNumberofSigUses = {}\n".format(MinimumNumberofSigUses) + \
                 "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
 
-    use_corpus = determine_use_corpus()
-
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                       args.corpus, args.datafolder, args.config,
                                       description=description,
                                       scriptname=__file__)
+
+    use_corpus = determine_use_corpus()
 
     main(language, corpus, datafolder,
          MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,

@@ -20,6 +20,24 @@ SEP_SIGTRANSFORM = "." # separator between sig and affix (NULL-s-ed-ing.ed)
 #    general functions used by various lxa5 components
 #------------------------------------------------------------------------------#
 
+def get_wordlist_path_corpus_stem(language, corpus, datafolder,
+                                  maxwordtokens, use_corpus):
+    """get wordlist_path and corpus_stem"""
+    if use_corpus:
+        if maxwordtokens:
+            word_token_suffix = "_{}-tokens".format(maxwordtokens)
+        else:
+            word_token_suffix = ""
+
+        corpus_stem = Path(corpus).stem + word_token_suffix
+
+        wordlist_path = Path(datafolder, language, "ngrams",
+                             corpus_stem + "_words.txt")
+    else:
+        corpus_stem = Path(corpus).stem
+        wordlist_path = Path(datafolder, language, corpus)
+    return (wordlist_path, corpus_stem)
+
 def determine_use_corpus():
     """determine if a corpus text or a wordlist is used as input dataset"""
     while True:
@@ -28,12 +46,14 @@ def determine_use_corpus():
         user_input = user_input.strip().casefold()
         if user_input and user_input in {"c", "w"}:
             if user_input == "c":
-                return True
+                use_corpus = True
             else:
-                # user_input is "w" (wordlist)
-                return False
+                use_corpus = False
+            break
         else:
             print("Invalid user input.")
+    return use_corpus
+    print('--------------------------')
 
 
 # a function with a more transparent name, without removing
@@ -228,9 +248,6 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
     if not testPath.exists():
         sys.exit('\nCorpus file "{}" does not exist.\n'
                  'Check file paths and names.'.format(testPath))
-    # -------------------------------------------------------------------------#
-
-    print('--------------------------')
 
     return language, corpus, datafolder
 

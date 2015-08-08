@@ -13,8 +13,11 @@ from pathlib import Path
 import ngrams
 from lxa5lib import (get_language_corpus_datafolder, json_pdump,
                      changeFilenameSuffix, stdout_list,
-                     load_config_for_command_line_help)
+                     load_config_for_command_line_help,
+                     determine_use_corpus, get_wordlist_path_corpus_stem,
+                     read_word_freq)
 
+import ngrams
 
 def makeArgParser(configfilename="config.json"):
 
@@ -48,6 +51,10 @@ def makeArgParser(configfilename="config.json"):
     parser.add_argument("--minsize",  help="Minimum size of "
                                            "successors/predecessors for output",
                         type=int, default=3)
+    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
+                        " if this is zero, then the program counts "
+                        "all word tokens in the corpus",
+                        type=int, default=0)
     return parser
 
 
@@ -186,12 +193,12 @@ def OutputSignatures1(outfilename, successors):
             if suffix_string not in sigs:
                 sigs[suffix_string] = dict()
             sigs[suffix_string][stem]= 1
-	
+
         siglist = list(sigs.keys())
         siglist.sort(key= lambda x:len(sigs[x]),reverse=True)   
 
         print (file=f)
-	
+
         for sig in siglist:
             print ("\n\n________________________________", file=f)	
             print (sig, file=f)	
@@ -203,9 +210,6 @@ def OutputSignatures1(outfilename, successors):
                 if i==howmanyperline:
                     i = 0
                     print (file=f)
-		
-
-             
 
 def OutputTrie(outfile, WordsBroken, reverse=False):
 
@@ -237,26 +241,44 @@ def lengthofcommonprefix(s1, s2):
 
 
 def main(language, corpus, datafolder,
-         MinimumStemLength, MinimumAffixLength, SF_threshold):
+         MinimumStemLength, MinimumAffixLength, SF_threshold,
+         maxwordtokens=0, use_corpus=True):
 
-    corpusName = Path(corpus).stem
+    #--------------------------------------------------------------------##
+    #        read wordlist
+    #--------------------------------------------------------------------##
+
+    print("reading wordlist...", flush=True)
+
+    wordlist_path, corpusName = get_wordlist_path_corpus_stem(language, corpus,
+                                         datafolder, maxwordtokens, use_corpus)
+
+    print("wordlist file path:\n{}\n".format(wordlist_path))
+
+    if not wordlist_path.exists():
+        if use_corpus:
+            if maxwordtokens:
+                warning = " ({} tokens)".format(maxwordtokens)
+            else:
+                warning = ""
+            print("\nWordlist for {}{} not found.\n"
+                  "ngrams.py is now run.\n".format(corpus, warning))
+            ngrams.main(language, corpus, datafolder, maxwordtokens)
+        else:
+            sys.exit("\nThe specified wordlist ""\n"
+                     "is not found.".format(wordlist_path))
+
+    wordFreqDict = read_word_freq(wordlist_path)
+    wordlist = sorted(wordFreqDict.keys())
+    reversedwordlist = sorted([x[::-1] for x in wordlist])
+
+    #--------------------------------------------------------------------##
+    #        output settings
+    #--------------------------------------------------------------------##
 
     outfolder = Path(datafolder, language, "tries")
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
-
-    # hack for John:
-    # if the "corpus" string ends with ".dx1", then use the dx1 file as wordlist
-    # instead of <corpusName>_words.txt
-
-    if Path(corpus).suffix.lower() == ".dx1":
-        infilename = Path(datafolder, language, corpus)
-    else:
-        infolder = Path(datafolder, language, "ngrams")
-        infilename = Path(infolder, corpusName + "_words.txt")
-
-        if not infilename.exists():
-            ngrams.main(language, corpus, datafolder)
 
     outfile_SF_name = Path(outfolder, corpusName + "_SF.txt")
     outfile_trieLtoR_name = Path(outfolder, corpusName + "_trieLtoR.txt")
@@ -265,26 +287,6 @@ def main(language, corpus, datafolder,
     outfile_PF_name = Path(outfolder, corpusName + "_PF.txt")
 
     outfile_Signatures_name = Path(outfolder, corpusName + "_Signatures.txt")
-
-    #--------------------------------------------------------------------##
-    #        read wordlist
-    #--------------------------------------------------------------------##
-
-    print("reading wordlist...", flush=True)
-
-    wordlist = list()
-    with infilename.open() as f:
-
-        filelines= f.readlines()
-
-        for line in filelines:
-            if (not line) or line[0] == "#":
-                continue
-            pieces = line.split()
-            wordlist.append(pieces[0])
-
-    wordlist.sort()
-    reversedwordlist = sorted([x[::-1] for x in wordlist])
 
     #--------------------------------------------------------------------##
     #        Find breaks in words (left-to-right and right-to-left)
@@ -338,18 +340,23 @@ if __name__ == "__main__":
     MinimumStemLength = args.minstem
     MinimumAffixLength = args.minaffix
     SF_threshold = args.minsize
+    maxwordtokens = args.maxwordtokens
 
     description="You are running {}.\n".format(__file__) + \
                 "This program computes tries.\n" + \
                 "MinimumStemLength = {}\n".format(MinimumStemLength) + \
                 "MinimumAffixLength = {}\n".format(MinimumAffixLength) + \
-                "SF_threshold = {}\n".format(SF_threshold)
+                "SF_threshold = {}\n".format(SF_threshold) + \
+                "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,
                                       args.corpus, args.datafolder, args.config,
                                       description=description,
                                       scriptname=__file__)
 
+    use_corpus = determine_use_corpus()
+
     main(language, corpus, datafolder,
-         MinimumStemLength, MinimumAffixLength, SF_threshold)
+         MinimumStemLength, MinimumAffixLength, SF_threshold,
+         maxwordtokens, use_corpus)
 
