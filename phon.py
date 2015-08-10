@@ -51,18 +51,14 @@ def makeArgParser(configfilename="config.json"):
     return parser
 
 
-def main(language, corpus, datafolder,
+def main(language=None, corpus=None, datafolder=None, filename=None,
          maxwordtokens=0, use_corpus=True):
 
-    corpusName = Path(corpus).stem
-
-    outfolder = Path(datafolder, language, "phon")
-
-    if not outfolder.exists():
-        outfolder.mkdir(parents=True)
+    print("\n*****************************************************\n"
+          "Running the phon.py program now...\n")
 
     infilename, corpusName = get_wordlist_path_corpus_stem(language, corpus,
-                                         datafolder, maxwordtokens, use_corpus)
+                                datafolder, filename, maxwordtokens, use_corpus)
 
     if not infilename.exists():
         if use_corpus:
@@ -72,10 +68,20 @@ def main(language, corpus, datafolder,
                 warning = ""
             print("\nWordlist for {}{} not found.\n"
                   "ngrams.py is now run.\n".format(corpus, warning))
-            ngrams.main(language, corpus, datafolder, maxwordtokens)
+            ngrams.main(language=language, corpus=corpus,
+                        datafolder=datafolder, filename=filename,
+                        maxwordtokens=maxwordtokens)
         else:
             sys.exit("\nThe specified wordlist ""\n"
                      "is not found.".format(infilename))
+
+    if filename:
+        outfolder = Path(Path(filename).parent, "phon")
+    else:
+        outfolder = Path(datafolder, language, 'phon')
+
+    if not outfolder.exists():
+        outfolder.mkdir(parents=True)
 
     outfilenamePhones = Path(outfolder, corpusName + "_phones.txt")
     outfilenameBiphones = Path(outfolder, corpusName + "_biphones.txt")
@@ -205,7 +211,7 @@ if __name__ == "__main__":
 
     use_corpus = determine_use_corpus()
 
-    main(language, corpus, datafolder,
-         maxwordtokens, use_corpus)
+    main(language=language, corpus=corpus, datafolder=datafolder,
+         maxwordtokens=maxwordtokens, use_corpus=use_corpus)
 
 

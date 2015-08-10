@@ -20,22 +20,30 @@ SEP_SIGTRANSFORM = "." # separator between sig and affix (NULL-s-ed-ing.ed)
 #    general functions used by various lxa5 components
 #------------------------------------------------------------------------------#
 
-def get_wordlist_path_corpus_stem(language, corpus, datafolder,
+def get_wordlist_path_corpus_stem(language, corpus, datafolder, filename, 
                                   maxwordtokens, use_corpus):
     """get wordlist_path and corpus_stem"""
-    if use_corpus:
-        if maxwordtokens:
-            word_token_suffix = "_{}-tokens".format(maxwordtokens)
-        else:
-            word_token_suffix = ""
+    if maxwordtokens:
+        word_token_suffix = "_{}-tokens".format(maxwordtokens)
+    else:
+        word_token_suffix = ""
 
+    if filename:
+        # if "filename" has a corpus filename, then "use_corpus" is also True
+        corpus = Path(filename).name
         corpus_stem = Path(corpus).stem + word_token_suffix
-
+        wordlist_path = Path(Path(filename).parent, "ngrams",
+                             corpus_stem + "_words.txt")
+    elif use_corpus:
+        # "use_corpus" is True, but "filename" has no corpus filename
+        corpus_stem = Path(corpus).stem + word_token_suffix
         wordlist_path = Path(datafolder, language, "ngrams",
                              corpus_stem + "_words.txt")
     else:
+        # input parameters are already for a wordlist
         corpus_stem = Path(corpus).stem
         wordlist_path = Path(datafolder, language, corpus)
+
     return (wordlist_path, corpus_stem)
 
 def determine_use_corpus():

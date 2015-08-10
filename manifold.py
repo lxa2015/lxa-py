@@ -77,16 +77,24 @@ def makeArgParser(configfilename="config.json"):
     return parser
 
 
-def main(language, corpus, datafolder,
+def main(language=None, corpus=None, datafolder=None, filename=None,
          maxwordtypes=1000, nNeighbors=9, nEigenvectors=11, 
          create_WordToContexts=False, create_ContextToWords=False,
          mincontexts=5, usesigtransforms=True):
 
-    corpusStem = Path(corpus).stem
+    print("\n*****************************************************\n"
+          "Running the manifold.py program now...\n")
 
-    infolder = Path(datafolder, language, 'ngrams')
-    outfolder = Path(datafolder, language, 'neighbors')
-    outcontextsfolder = Path(datafolder, language, 'word_contexts')
+    if filename:
+        corpusStem = Path(filename).stem
+        infolder = Path(Path(filename).parent, 'ngrams')
+        outfolder = Path(Path(filename).parent, 'neighbors')
+        outcontextsfolder = Path(Path(filename).parent, 'word_contexts')
+    else:
+        corpusStem = Path(corpus).stem
+        infolder = Path(datafolder, language, 'ngrams')
+        outfolder = Path(datafolder, language, 'neighbors')
+        outcontextsfolder = Path(datafolder, language, 'word_contexts')
 
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
@@ -103,10 +111,14 @@ def main(language, corpus, datafolder,
        (not infileTrigramsname.exists()):
         print("Error in locating n-gram data files.\n"
               "The program now creates them.\n")
-        ngrams.main(language, corpus, datafolder)
+        ngrams.main(language=language, corpus=corpus,
+                        datafolder=datafolder, filename=filename)
 
     if usesigtransforms:
-        infolderlxa = Path(datafolder, language, 'lxa')
+        if filename:
+            infolderlxa = Path(Path(filename).parent, 'lxa')
+        else:
+            infolderlxa = Path(datafolder, language, 'lxa')
         sigtransform_json_fname = Path(infolderlxa,
                                         corpusStem + "_WordToSigtransforms.json")
         try:
@@ -114,7 +126,8 @@ def main(language, corpus, datafolder,
         except FileNotFoundError:
             print("The file \"{}\" is not found.\n"
                   "The program now creates it.\n".format(sigtransform_json_fname))
-            lxa5.main(language, corpus, datafolder)
+            lxa5.main(language=language, corpus=corpus, datafolder=datafolder,
+                      filename=filename)
             WordToSigtransforms = json_pload(sigtransform_json_fname.open())
 
     # WordToSigtransforms just read into the program; to be used soon...
@@ -285,8 +298,11 @@ if __name__ == "__main__":
               "mincontexts is now set to equal nNeighbors.\n")
         mincontexts = nNeighbors
 
-    main(language, corpus, datafolder,
-         maxwordtypes, nNeighbors, nEigenvectors,
-         create_WordToContexts, create_ContextToWords, mincontexts,
-         usesigtransforms)
+    main(language=language, corpus=corpus, datafolder=datafolder,
+         maxwordtypes=maxwordtypes, nNeighbors=nNeighbors,
+         nEigenvectors=nEigenvectors,
+         create_WordToContexts=create_WordToContexts,
+         create_ContextToWords=create_ContextToWords,
+         mincontexts=mincontexts,
+         usesigtransforms=usesigtransforms)
 

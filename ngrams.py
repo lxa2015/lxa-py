@@ -47,11 +47,21 @@ def makeArgParser(configfilename="config.json"):
     return parser
 
 
-def main(language, corpus, datafolder, maxwordtokens=0):
+def main(language=None, corpus=None, datafolder=None, filename=None,
+         maxwordtokens=0):
 
-    infilename = Path(datafolder, language, corpus)
-    outfolder = Path(datafolder, language, "ngrams")
-    outfolderDx1 = Path(datafolder, language, "dx1")
+    print("\n*****************************************************\n"
+          "Running the ngrams.py program now...\n")
+
+    if filename:
+        infilename = Path(filename)
+        outfolder = Path(infilename.parent, "ngrams")
+        outfolderDx1 = Path(infilename.parent, "dx1")
+        corpus = infilename.name
+    else:
+        infilename = Path(datafolder, language, corpus)
+        outfolder = Path(datafolder, language, "ngrams")
+        outfolderDx1 = Path(datafolder, language, "dx1")
 
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
@@ -185,5 +195,6 @@ if __name__ == "__main__":
                                       description=description,
                                       scriptname=__file__)
 
-    main(language, corpus, datafolder, maxwordtokens)
+    main(language=language, corpus=corpus, datafolder=datafolder,
+         maxwordtokens=maxwordtokens)
 

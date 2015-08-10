@@ -240,9 +240,12 @@ def lengthofcommonprefix(s1, s2):
     return length
 
 
-def main(language, corpus, datafolder,
-         MinimumStemLength, MinimumAffixLength, SF_threshold,
+def main(language=None, corpus=None, datafolder=None, filename=None,
+         MinimumStemLength=4, MinimumAffixLength=1, SF_threshold=3,
          maxwordtokens=0, use_corpus=True):
+
+    print("\n*****************************************************\n"
+          "Running the tries.py program now...\n")
 
     #--------------------------------------------------------------------##
     #        read wordlist
@@ -251,7 +254,7 @@ def main(language, corpus, datafolder,
     print("reading wordlist...", flush=True)
 
     wordlist_path, corpusName = get_wordlist_path_corpus_stem(language, corpus,
-                                         datafolder, maxwordtokens, use_corpus)
+                                datafolder, filename, maxwordtokens, use_corpus)
 
     print("wordlist file path:\n{}\n".format(wordlist_path))
 
@@ -263,7 +266,9 @@ def main(language, corpus, datafolder,
                 warning = ""
             print("\nWordlist for {}{} not found.\n"
                   "ngrams.py is now run.\n".format(corpus, warning))
-            ngrams.main(language, corpus, datafolder, maxwordtokens)
+            ngrams.main(language=language, corpus=corpus,
+                        datafolder=datafolder, filename=filename,
+                        maxwordtokens=maxwordtokens)
         else:
             sys.exit("\nThe specified wordlist ""\n"
                      "is not found.".format(wordlist_path))
@@ -276,7 +281,11 @@ def main(language, corpus, datafolder,
     #        output settings
     #--------------------------------------------------------------------##
 
-    outfolder = Path(datafolder, language, "tries")
+    if filename:
+        outfolder = Path(Path(filename).parent, "tries")
+    else:
+        outfolder = Path(datafolder, language, "tries")
+
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
 
@@ -356,7 +365,9 @@ if __name__ == "__main__":
 
     use_corpus = determine_use_corpus()
 
-    main(language, corpus, datafolder,
-         MinimumStemLength, MinimumAffixLength, SF_threshold,
-         maxwordtokens, use_corpus)
+    main(language=language, corpus=corpus, datafolder=datafolder,
+         MinimumStemLength=MinimumStemLength,
+         MinimumAffixLength=MinimumAffixLength,
+         SF_threshold=SF_threshold,
+         maxwordtokens=maxwordtokens, use_corpus=use_corpus)
 

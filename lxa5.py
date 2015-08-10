@@ -87,9 +87,12 @@ def create_wordlist(language, filename, datafolder,
     return wordlist, word_freq_dict
 
 
-def main(language, corpus, datafolder,
+def main(language=None, corpus=None, datafolder=None, filename=None,
          MinimumStemLength=4, MaximumAffixLength=3, MinimumNumberofSigUses=5,
          maxwordtokens=0, use_corpus=True):
+
+    print("\n*****************************************************\n"
+          "Running the lxa5.py program now...\n")
 
     # -------------------------------------------------------------------------#
     #       decide suffixing or prefixing
@@ -107,12 +110,11 @@ def main(language, corpus, datafolder,
 
     if language in suffix_languages:
         FindSuffixesFlag = True  # suffixal
-
     else:
         FindSuffixesFlag = False  # prefixal
 
     wordlist_path, corpus_stem = get_wordlist_path_corpus_stem(language, corpus,
-                                         datafolder, maxwordtokens, use_corpus)
+                                datafolder, filename, maxwordtokens, use_corpus)
 
     print("wordlist file path:\n{}\n".format(wordlist_path))
 
@@ -124,7 +126,9 @@ def main(language, corpus, datafolder,
                 warning = ""
             print("\nWordlist for {}{} not found.\n"
                   "ngrams.py is now run.\n".format(corpus, warning))
-            ngrams.main(language, corpus, datafolder, maxwordtokens)
+            ngrams.main(language=language, corpus=corpus,
+                        datafolder=datafolder, filename=filename,
+                        maxwordtokens=maxwordtokens)
         else:
             sys.exit("\nThe specified wordlist ""\n"
                      "is not found.".format(wordlist_path))
@@ -132,7 +136,10 @@ def main(language, corpus, datafolder,
     wordFreqDict = read_word_freq(wordlist_path)
     wordlist = sorted(wordFreqDict.keys())
 
-    outfolder = Path(datafolder, language, 'lxa')
+    if filename:
+        outfolder = Path(Path(filename).parent, "lxa")
+    else:
+        outfolder = Path(datafolder, language, 'lxa')
 
     if not outfolder.exists():
         outfolder.mkdir(parents=True)
@@ -597,7 +604,10 @@ if __name__ == "__main__":
 
     use_corpus = determine_use_corpus()
 
-    main(language, corpus, datafolder,
-         MinimumStemLength, MaximumAffixLength, MinimumNumberofSigUses,
-         maxwordtokens, use_corpus)
+    main(language=language, corpus=corpus, datafolder=datafolder,
+         MinimumStemLength=MinimumStemLength,
+         MaximumAffixLength=MaximumAffixLength,
+         MinimumNumberofSigUses=MinimumNumberofSigUses,
+         maxwordtokens=maxwordtokens, use_corpus=use_corpus)
+
 
