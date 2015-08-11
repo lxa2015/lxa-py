@@ -5,7 +5,8 @@ import argparse
 from pathlib import Path
 
 from lxa5lib import (get_language_corpus_datafolder, stdout_list,
-                     load_config_for_command_line_help, sorted_alphabetized)
+                     load_config_for_command_line_help, sorted_alphabetized,
+                     changeFilenameSuffix, json_pdump)
 
 #------------------------------------------------------------------------------#
 #
@@ -149,6 +150,7 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     trigramsSorted = sorted_alphabetized(trigramDict.items(),
                                          key=lambda x: x[1], reverse=True)
 
+    # print txt outputs
     with outfilenameWords.open('w') as f:
         print(intro_string, file=f)
         print("# type count: {}".format(len(wordsSorted)), file=f)
@@ -167,17 +169,29 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
         for (trigram, freq) in trigramsSorted:
             print(trigram + sep + str(freq), file=f)
 
+    # print dx1 output
     with outfilenameDx1.open('w') as f:
         for (word, freq) in wordsSorted:
             print(word, freq, ' '.join(word), file=f)
+
+    # print json outputs
+    with changeFilenameSuffix(outfilenameWords, ".json").open('w') as f:
+        json_pdump(dict(wordsSorted), f)
+
+    with changeFilenameSuffix(outfilenameBigrams, ".json").open('w') as f:
+        json_pdump(dict(bigramsSorted), f)
+
+    with changeFilenameSuffix(outfilenameTrigrams, ".json").open('w') as f:
+        json_pdump(dict(trigramsSorted), f)
 
     print('wordlist, bigram and trigram files ready')
     print('dx1 file ready')
 
     stdout_list("Output files:", outfilenameWords,
-                                 outfilenameBigrams,
-                                 outfilenameTrigrams,
-                                 outfilenameDx1)
+                outfilenameBigrams, outfilenameTrigrams, outfilenameDx1,
+                changeFilenameSuffix(outfilenameWords, ".json"),
+                changeFilenameSuffix(outfilenameBigrams, ".json"),
+                changeFilenameSuffix(outfilenameTrigrams, ".json"))
 
 
 if __name__ == "__main__":
