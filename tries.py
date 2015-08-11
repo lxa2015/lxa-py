@@ -102,20 +102,20 @@ def BreakUpEachWord(wordlist, breakListDict):
     WordsBroken = dict()
 
     for i, thisword in enumerate(wordlist):
-        WordsBroken[i] = list()
+        WordsBroken[thisword] = list()
         breakList = sorted(breakListDict[i])
 
         if not breakList:
-            WordsBroken[i].append(thisword)
+            WordsBroken[thisword].append(thisword)
         else:
             thispiece = ""
             for x in range(len(thisword)):
                 thispiece += thisword[x]
                 if x+1 in breakList:
-                    WordsBroken[i].append(thispiece)
+                    WordsBroken[thisword].append(thispiece)
                     thispiece = ""
             if thispiece:
-                WordsBroken[i].append(thispiece)
+                WordsBroken[thisword].append(thispiece)
 
     return WordsBroken
 
@@ -124,7 +124,7 @@ def GetSuccessors(wordlist, WordsBroken):
     successors = dict()
     for i, thisword in enumerate(wordlist):
         wordbeginning = ""
-        thiswordparsed = WordsBroken[i]
+        thiswordparsed = WordsBroken[thisword]
         thiswordnumberofpieces = len(thiswordparsed)
 
         if not thiswordparsed:
@@ -211,7 +211,7 @@ def OutputSignatures1(outfilename, successors):
                     i = 0
                     print (file=f)
 
-def OutputTrie(outfile, WordsBroken, reverse=False):
+def OutputTrie(outfile, wordlist, WordsBroken, reverse=False):
 
     if reverse:
         # dealing with predecessors, not successors
@@ -221,9 +221,9 @@ def OutputTrie(outfile, WordsBroken, reverse=False):
         WordsBroken = WordsBroken_new
 
     with outfile.open("w") as f:
-        for i in range(len(WordsBroken)):
-            for j in range(len(WordsBroken[i])):
-                thispiece = WordsBroken[i][j]
+        for thisword in wordlist:
+            for j in range(len(WordsBroken[thisword])):
+                thispiece = WordsBroken[thisword][j]
                 print(thispiece, file=f, end="\t")
             print(file=f)
 
@@ -325,6 +325,12 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     predecessors = GetSuccessors(reversedwordlist, WordsBrokenRtoL)
     OutputSuccessors(outfile_PF_name, predecessors, SF_threshold, reverse=True)
 
+    outfile_SF_name_json = changeFilenameSuffix(outfile_SF_name, ".json")
+    json_pdump(successors, outfile_SF_name_json.open("w"))
+
+    outfile_PF_name_json = changeFilenameSuffix(outfile_PF_name, ".json")
+    json_pdump(predecessors, outfile_PF_name_json.open("w"))
+
     print("printing signatures...", flush=True)
     OutputSignatures1(outfile_Signatures_name, successors)
 
@@ -334,12 +340,21 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
 
     print("printing tries...", flush=True)
 
-    OutputTrie(outfile_trieLtoR_name, WordsBrokenLtoR)
-    OutputTrie(outfile_trieRtoL_name, WordsBrokenRtoL, reverse=True)
+    OutputTrie(outfile_trieLtoR_name, wordlist, WordsBrokenLtoR)
+    OutputTrie(outfile_trieRtoL_name, reversedwordlist, WordsBrokenRtoL, reverse=True)
+
+    outfile_trieLtoR_name_json = changeFilenameSuffix(outfile_trieLtoR_name, ".json")
+    json_pdump(WordsBrokenLtoR, outfile_trieLtoR_name_json.open("w"))
+
+    outfile_trieRtoL_name_json = changeFilenameSuffix(outfile_trieRtoL_name, ".json")
+    json_pdump(WordsBrokenRtoL, outfile_trieRtoL_name_json.open("w"))
 
     stdout_list("Output files:", outfile_SF_name, outfile_PF_name,
                                  outfile_trieLtoR_name, outfile_trieRtoL_name,
-                                 outfile_Signatures_name)
+                                 outfile_Signatures_name,
+                                 outfile_SF_name_json, outfile_PF_name_json,
+                                 outfile_trieLtoR_name_json,
+                                 outfile_trieRtoL_name_json)
 
 
 if __name__ == "__main__":
