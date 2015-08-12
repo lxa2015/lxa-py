@@ -63,10 +63,10 @@ def makeArgParser(configfilename="config.json"):
                         type=int, default=11)
 
     parser.add_argument("--mincontexts", help="Minimum number of times that "
-                        "a word occurs in a context (for ImportantContextToWords); "
+                        "a word occurs in a context; "
                         "also minimum number of neighbors for a word that share "
                         "a context (for WordToSharedContextsOfNeighbors)",
-                        type=int, default=5)
+                        type=int, default=3)
     parser.add_argument("--wordtocontexts", help="create the WordToContexts dict?",
                         type=bool, default=False)
     parser.add_argument("--contexttowords", help="create the ContextToWords dict?",
@@ -80,7 +80,7 @@ def makeArgParser(configfilename="config.json"):
 def main(language=None, corpus=None, datafolder=None, filename=None,
          maxwordtypes=1000, nNeighbors=9, nEigenvectors=11, 
          create_WordToContexts=False, create_ContextToWords=False,
-         mincontexts=5, usesigtransforms=True):
+         mincontexts=3, usesigtransforms=True):
 
     print("\n*****************************************************\n"
           "Running the manifold.py program now...\n")
@@ -170,9 +170,8 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     print("Reading bigrams/trigrams and computing context array...", flush=True)
 
     context_array, contextdict, \
-    WordToContexts, ContextToWords = GetContextArray(
-                                   nWordsForAnalysis, worddict,
-                                   infileBigramsname, infileTrigramsname)
+    WordToContexts, ContextToWords = GetContextArray(nWordsForAnalysis,
+        worddict, infileBigramsname, infileTrigramsname, mincontexts)
 
     print("Computing shared context master matrix...", flush=True)
     CountOfSharedContexts = context_array.dot(context_array.T).todense()
@@ -285,7 +284,7 @@ if __name__ == "__main__":
                 "nEigenvectors = {}\n".format(nEigenvectors) + \
                 "create_WordToContexts = {}\n".format(create_WordToContexts) + \
                 "create_ContextToWords = {}\n".format(create_ContextToWords) + \
-                "mincontexts = {}".format(mincontexts) + \
+                "mincontexts = {}\n".format(mincontexts) + \
                 "usesigtransforms = {}".format(usesigtransforms)
 
     language, corpus, datafolder = get_language_corpus_datafolder(args.language,

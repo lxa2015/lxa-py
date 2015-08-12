@@ -69,7 +69,7 @@ def GetMyGraph(WordToNeighbors_by_str, useWeights=None):
 
 
 def GetContextArray(nwords, worddict,
-                    infileBigramsname, infileTrigramsname):
+                    infileBigramsname, infileTrigramsname, mincontexts):
 
     # this is necessary so we can reference variables from inner functions
     class Namespace:
@@ -133,6 +133,9 @@ def GetContextArray(nwords, worddict,
             word3 = line_components[2]
             occurrence_count = int(line_components[3])
 
+            if occurrence_count < mincontexts:
+                continue
+
             context1 = tuple(['_', word2, word3])
             context2 = tuple([word1, '_', word3])
             context3 = tuple([word1, word2, '_'])
@@ -154,6 +157,9 @@ def GetContextArray(nwords, worddict,
             word1 = line_components[0]
             word2 = line_components[1]
             occurrence_count = int(line_components[2])
+
+            if occurrence_count < mincontexts:
+                continue
 
             context1 = tuple(['_', word2])
             context2 = tuple([word1, '_'])
