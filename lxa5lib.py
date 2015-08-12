@@ -458,18 +458,29 @@ def OutputLargeDict(outfilename, inputdict,
 
     with outfilename.open('w') as f:
         if summary:
+            # print a summary (typically the list of keys with the size of the
+            # corresponding value)
             for i in range(nItems):
                 print("{} {}".format(str(input_keys[i]).ljust(max_key_length),
                                      len(input_values[i])), file=f)
             print(file=f)
 
+        # for each key, print its value in a nice way
         for i in range(nItems):
+
+            # print key and the size of value
             print("{} {}".format(str(input_keys[i]).ljust(max_key_length),
                                  len(input_values[i])), file=f)
 
             row = input_values[i]
             output_list = list()
             sublist = list()
+
+            # output_list stores everything to be printed
+            # output_list has sublists as elements
+            # each sublist has the things to be printed in each output row
+            # the size of each sublist is controlled by howmanyperline
+            # so overall what's being printed is like a table
 
             for j, item in enumerate(row, 1):
                 sublist.append(item)
@@ -480,16 +491,29 @@ def OutputLargeDict(outfilename, inputdict,
             if sublist:
                 output_list.append(sublist)
 
+            # now we're trying to find out what the cell width should be
+            # for each column of the output table
+
+            # treat output_list as a matrix-like object, transpose it using the
+            # the zip_longest function so that we can easily compute the
+            # required cell width for each column (stored in cell_width_list).
+
             output_list_transposed = zip_longest(*output_list, fillvalue="")
 
             cell_width_list = [max([len(item) for item in str_list])
                                for str_list in output_list_transposed]
+
+            # if min_cell_width is not zero, we are forcing a particular
+            # min_cell_width value to be used
+            # we use it if and only if min_cell_width is larger than a column
+            # cell width
 
             if min_cell_width:
                 for j in range(len(cell_width_list)):
                     if min_cell_width > cell_width_list[j]:
                         cell_width_list[j] = min_cell_width
 
+            # print the stuff from output_list to the output text file
             for item_list in output_list:
                 for j, item in enumerate(item_list):
                     print(str(item).ljust(cell_width_list[j]), end=" ", file=f)
