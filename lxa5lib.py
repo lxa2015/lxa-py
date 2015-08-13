@@ -29,22 +29,26 @@ def get_wordlist_path_corpus_stem(language, corpus, datafolder, filename,
         word_token_suffix = ""
 
     if filename:
-        # if "filename" has a corpus filename, then "use_corpus" is also True
+        # if "filename" has a corpus filename,
+        # then "use_corpus" is also True and doesn't have to be checked
+
         corpus = Path(filename).name
         corpus_stem = Path(corpus).stem + word_token_suffix
         wordlist_path = Path(Path(filename).parent, "ngrams",
                              corpus_stem + "_words.txt")
     elif use_corpus:
         # "use_corpus" is True, but "filename" has no corpus filename
+
         corpus_stem = Path(corpus).stem + word_token_suffix
         wordlist_path = Path(datafolder, language, "ngrams",
                              corpus_stem + "_words.txt")
     else:
-        # input parameters are already for a wordlist
+        # input parameters are for a wordlist, not for a corpus text file
         corpus_stem = Path(corpus).stem
         wordlist_path = Path(datafolder, language, corpus)
 
     return (wordlist_path, corpus_stem)
+
 
 def determine_use_corpus():
     """determine if a corpus text or a wordlist is used as input dataset"""
@@ -60,8 +64,8 @@ def determine_use_corpus():
             break
         else:
             print("Invalid user input.")
-    return use_corpus
     print('--------------------------')
+    return use_corpus
 
 
 # a function with a more transparent name, without removing
@@ -98,6 +102,7 @@ def read_corpus_file(corpus_path: Path, casefold=True) -> Counter:
         word_frequencies[word] += freq
 
     return word_frequencies
+
 
 def proceed_or_not():
     proceed = input("Should the program proceed? [Y/n] ")
@@ -217,9 +222,16 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
     # write the configuration file
 
     if newconfig:
-        config = {'language': language,
-                  'corpus': corpus,
-                  'datafolder': datafolder}
+        if not config_path.exists():
+            config = {'language': language,
+                      'corpus': corpus,
+                      'datafolder': datafolder}
+        else:
+            config = json.load(config_path.open())
+            config.update({'language': language,
+                           'corpus': corpus,
+                           'datafolder': datafolder})
+
         with config_path.open('w') as config_file:
             json.dump(config, config_file)
             print('New configuration file \"{}\" written.'.format(config_path))
@@ -251,7 +263,7 @@ def get_language_corpus_datafolder(_language, _corpus, _datafolder,
     proceed_or_not()
 
     # -------------------------------------------------------------------------#
-    # make sure the expected corpus file exists. If not, exit the program.
+    # make sure the expected file exists. If not, exit the program.
 
     if not testPath.exists():
         sys.exit('\nCorpus file "{}" does not exist.\n'

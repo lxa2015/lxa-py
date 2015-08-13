@@ -14,8 +14,10 @@ import argparse
 from pathlib import Path
 from collections import OrderedDict
 import sys
+import json
 
 import networkx as nx
+from networkx.readwrite import json_graph
 
 from manifold_module import (GetMyWords, GetContextArray,
                              Normalize, compute_incidence_graph,
@@ -227,7 +229,14 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
             print(word, " ".join(neighbors), file=f)
 
     neighbor_graph = GetMyGraph(WordToNeighbors_by_str)
+
+    # output manifold as gexf data file
     nx.write_gexf(neighbor_graph, str(outfilenameNeighborGraph))
+
+    # output manifold as json for d3 visualization
+    manifold_json_data = json_graph.node_link_data(neighbor_graph)
+    outfilenameManifoldJson = Path(outfolder, corpusName + "_manifold.json")
+    json.dump(manifold_json_data, outfilenameManifoldJson.open("w"), indent=2)
 
     WordToNeighbors_json = changeFilenameSuffix(outfilenameNeighbors, ".json")
     json_pdump(WordToNeighbors_by_str, WordToNeighbors_json.open("w"), asis=True)
@@ -250,7 +259,8 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
 
     outputfilelist = [outfilenameNeighbors, outfilenameNeighborGraph,
                       WordToNeighbors_json, outfilenameSharedcontexts,
-                      outfilenameImportantContextToWords]
+                      outfilenameImportantContextToWords,
+                      outfilenameManifoldJson]
 
     if create_WordToContexts:
         outputfilelist.append(outWordToContexts_json)
