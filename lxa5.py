@@ -108,10 +108,10 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
                         'test'}
     prefix_languages = {"swahili"}
 
-    if language in suffix_languages:
-        FindSuffixesFlag = True  # suffixal
-    else:
+    if str(language).casefold() in prefix_languages:
         FindSuffixesFlag = False  # prefixal
+    else:
+        FindSuffixesFlag = True  # suffixal
 
     wordlist_path, corpus_stem = get_wordlist_path_corpus_stem(language, corpus,
                                 datafolder, filename, maxwordtokens, use_corpus)
