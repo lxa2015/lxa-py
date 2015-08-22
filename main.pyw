@@ -265,13 +265,15 @@ class MainWindow(QMainWindow):
             flush=True)
 
         # run Linguistica for the selected corpus and show progress
-        bar = QProgressBar(self)
 
-        progress = QProgressDialog(
-            "Extracting ngrams", "&Cancel", 0, 0)
-        progress.setWindowTitle('Processing {}'.format(self.corpus_name))
-        progress.setBar(bar)
-        progress.show()
+        # TODO: progress bar and dialog...
+#        bar = QProgressBar(self)
+
+#        progress = QProgressDialog(
+#            "Extracting ngrams", "&Cancel", 0, 0)
+#        progress.setWindowTitle('Processing {}'.format(self.corpus_name))
+#        progress.setBar(bar)
+#        progress.show()
 
         ngram.main(filename=self.corpus_filename,
             maxwordtokens=self.max_word_tokens)
