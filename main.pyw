@@ -61,7 +61,7 @@ from PyQt5.QtWidgets import (QDialog, QMainWindow, QApplication, QWidget,
                              QFileDialog, QLabel, QPushButton, QMessageBox,
                              QLayout, QTabWidget, QDoubleSpinBox, QLineEdit,
                              QTreeWidgetItem, QTableWidget, QTableWidgetItem,
-                             QSplitter)
+                             QSplitter, QProgressDialog, QProgressBar)
 from PyQt5.QtWebKitWidgets import QWebView
 
 # the following modules are from the Linguistica team.
@@ -181,6 +181,11 @@ class MainWindow(QMainWindow):
         except KeyError:
             self.filenames_run = list()
 
+        self.status = self.statusBar()
+        self.status.setSizeGripEnabled(False)
+        self.status.showMessage("No corpus text file loaded. "
+                                "To select one: File --> Read corpus...")
+
 
     def createAction(self, text=None, slot=None, tip=None, shortcut=None,
                      checkable=False):
@@ -214,6 +219,7 @@ class MainWindow(QMainWindow):
         except (TypeError, KeyError, FileNotFoundError):
             open_dir = "."
 
+        open_file_dialog = QFileDialog()
         fname = QFileDialog.getOpenFileName(self,
                                         "Open a new corpus data file", open_dir)
 
@@ -251,8 +257,21 @@ class MainWindow(QMainWindow):
         if not self.valid_filename():
             return
 
+        self.status.clearMessage()
+        self.status.showMessage(
+            "Running the corpus {} now...".format(self.corpus_name))
+
         print("\nCorpus text file in use:\n{}\n".format(self.corpus_filename),
             flush=True)
+
+        # run Linguistica for the selected corpus and show progress
+        bar = QProgressBar(self)
+
+        progress = QProgressDialog(
+            "Extracting ngrams", "&Cancel", 0, 0)
+        progress.setWindowTitle('Processing {}'.format(self.corpus_name))
+        progress.setBar(bar)
+        progress.show()
 
         ngram.main(filename=self.corpus_filename,
             maxwordtokens=self.max_word_tokens)
@@ -291,6 +310,8 @@ class MainWindow(QMainWindow):
             print("Configuration file updated", flush=True)
 
         print("\nAll Linguistica components run for the corpus", flush=True)
+        self.status.clearMessage()
+        self.status.showMessage("{} processed".format(self.corpus_name))
 
 
     def write_new_config(self):
@@ -348,6 +369,8 @@ class MainWindow(QMainWindow):
         for item in [WORD_NEIGHBORS, VISUALIZED_GRAPH]:
             self.lexiconTree.expandItem(QTreeWidgetItem(ancestor, [item]))
 
+        self.status.clearMessage()
+        self.status.showMessage("Navigation tree populated")
         print("Lexicon navigation tree populated", flush=True)
 
     def valid_filename(self):
@@ -368,7 +391,16 @@ class MainWindow(QMainWindow):
         is clicked, and update the major display plus parameter window
         """
         item_str = item.text(0)
+
+        if item_str in {WORD_NGRAMS, SIGNATURES, TRIES, SF_TRIES, PF_TRIES,
+                        PHONOLOGY, MANIFOLDS}:
+            return
+
         print("loading", item_str, flush=True)
+
+        self.status.clearMessage()
+        self.status.showMessage("Loading {}...".format(item_str))
+
         self.lexicon.retrieve_data(item_str)
 
         new_display = None
@@ -470,7 +502,7 @@ class MainWindow(QMainWindow):
 
         elif item_str == VISUALIZED_GRAPH:
             graph_width = self.screen_width - TREEWIDGET_WIDTH_MAX - 50
-            graph_height = self.screen_height - 50
+            graph_height = self.screen_height - 70
             html_name = "show_manifold.html"
             #html_name = "_test_show_manifold.html"
 
@@ -493,6 +525,8 @@ class MainWindow(QMainWindow):
         self.load_main_window(major_display=new_display,
                               parameter_window=new_parameter_window)
 
+        self.status.clearMessage()
+        self.status.showMessage("{} selected".format(item_str))
 
     def create_major_display_table(self, input_iterable,
             key=lambda x : x, reverse=False,

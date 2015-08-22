@@ -5,6 +5,8 @@ incremental*
 test*
 *~
 
+show_manifold.html
+
 env
 corpora
 data
