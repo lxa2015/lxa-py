@@ -1,6 +1,5 @@
 *.pyc
 .idea
-*.pyw
 *.json
 incremental*
 test*
