@@ -44,7 +44,7 @@ function zooming() {
   svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
 };
 
-d3.json("/home/jackson/Dropbox/data/english/neighbors/english-brown_1000_9_manifold.json", function(error, graph) {
+d3.json("/home/jackson/Dropbox/data/french/neighbors/french-encarta_1000_9_manifold.json", function(error, graph) {
   if (error) throw error;
 
   force
