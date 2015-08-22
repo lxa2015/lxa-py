@@ -98,16 +98,10 @@ def GetContextArray(nwords, worddict,
     cols = [] # column numbers are context indices
     vals = [] 
 
-    # both WordToContexts and ContextToWords use integers as indices and do NOT
-    # store strings directly
-    # so WordToContexts maps word indices to context indices
-    # and ContextToWords maps context indices to word indices
-    # we need the indices anyway, because of the use of scipy sparse matrix
-    # and we keep this indexing approach for memory efficiency
-    # (e.g., avoid direct string comparison)
-
-    WordToContexts = defaultdict(Counter)
-    ContextToWords = defaultdict(Counter)
+    # use the standard dict data type here, don't use Counter, defaultdict, etc
+    # because we will serialize these two dicts as JSON later
+    WordToContexts = dict()
+    ContextToWords = dict()
 
     def addword(word, context, occurrence_count):
         word_no = worddict[word] # w is a word index
@@ -116,6 +110,17 @@ def GetContextArray(nwords, worddict,
         cols.append(context_no)
         vals.append(1) # if we use 1, we assume "type" counts.
                        # What if we use occurrence_count (--> "token" counts)?
+
+        # update WordToContexts and ContextToWords
+        if word not in WordToContexts:
+            WordToContexts[word] = dict()
+        if context not in WordToContexts[word]:
+            WordToContexts[word][context] = 0
+
+        if context not in ContextToWords:
+            ContextToWords[context] = dict()
+        if word not in ContextToWords[context]:
+            ContextToWords[context][word] = 0
 
         WordToContexts[word][context] += occurrence_count
         ContextToWords[context][word] += occurrence_count
@@ -127,7 +132,7 @@ def GetContextArray(nwords, worddict,
 
         context1 = '_' + sep + word2 + sep + word3
         context2 = word1 + sep + '_' + sep + word3
-        context3 = word1 + sep + word2 + sep '_'
+        context3 = word1 + sep + word2 + sep + '_'
 
         if worddict.get(word1) is not None:
             addword(word1, context1, freq)
@@ -207,115 +212,105 @@ def GetEigenvectors(laplacian):
     return scipy.sparse.linalg.eigs(laplacian_sparse)
 
 
-def compute_WordToSharedContextsOfNeighbors(nWordsForAnalysis, WordToContexts,
-        WordToNeighbors, ContextToWords, nNeighbors, mincontexts):
+def compute_WordToSharedContextsOfNeighbors(analyzedwordlist, WordToContexts,
+        WordToNeighbors, ContextToWords, mincontexts):
 
     WordToSharedContextsOfNeighbors = dict()
 
-    for word_no in range(nWordsForAnalysis):
-        WordToSharedContextsOfNeighbors[word_no] = dict()
+    for word in analyzedwordlist:
+        WordToSharedContextsOfNeighbors[word] = dict()
 
-        neighbor_no_list = WordToNeighbors[word_no] # list of neighbor indices
+        neighbors = WordToNeighbors[word] # list of neighbor indices
 
-        for context_no in WordToContexts[word_no].keys():
-            WordToSharedContextsOfNeighbors[word_no][context_no] = list()
+        for context in WordToContexts[word].keys():
+            WordToSharedContextsOfNeighbors[word][context] = list()
 
-            for neighbor_no in neighbor_no_list:
-                if neighbor_no in ContextToWords[context_no]:
-                    WordToSharedContextsOfNeighbors[word_no][context_no].append(neighbor_no)
+            for neighbor in neighbors:
+                if neighbor in ContextToWords[context]:
+                    WordToSharedContextsOfNeighbors[word][context].append(neighbor)
 
-            if len(WordToSharedContextsOfNeighbors[word_no][context_no]) < mincontexts:
-                del WordToSharedContextsOfNeighbors[word_no][context_no]
+            if len(WordToSharedContextsOfNeighbors[word][context]) < mincontexts:
+                del WordToSharedContextsOfNeighbors[word][context]
 
     ImportantContextToWords = dict()
-    for word_no in range(nWordsForAnalysis):
-        for context_no in WordToSharedContextsOfNeighbors[word_no].keys():
-            NumberOfTimesThisWordOccursInThisContext = ContextToWords[context_no][word_no]
-            if NumberOfTimesThisWordOccursInThisContext >= mincontexts:
-                if context_no not in ImportantContextToWords:
-                    ImportantContextToWords[context_no] = dict()
-
-                ImportantContextToWords[context_no][word_no] = NumberOfTimesThisWordOccursInThisContext
+    for word in analyzedwordlist:
+        for context in WordToSharedContextsOfNeighbors[word].keys():
+            CountOfThisWordInThisContext = ContextToWords[context][word]
+            if CountOfThisWordInThisContext >= mincontexts:
+                if context not in ImportantContextToWords:
+                    ImportantContextToWords[context] = dict()
+                ImportantContextToWords[context][word] = CountOfThisWordInThisContext
 
     return (WordToSharedContextsOfNeighbors, ImportantContextToWords)
 
 
 def output_WordToSharedContextsOfNeighbors(outfilenameSharedcontexts,
-                                        WordToSharedContextsOfNeighbors,
-                                        worddict, contextdict,
-                                        nWordsForAnalysis):
-
-    _worddict = {v:k for k,v in worddict.items()} # from index to word
-    _contextdict = {v:k for k,v in contextdict.items()} # from index to context tuple
+        WordToSharedContextsOfNeighbors, analyzedwordlist):
 
     with outfilenameSharedcontexts.open("w") as f:
-        for word_idx in range(nWordsForAnalysis):
-
-            ContextToNeighbors = WordToSharedContextsOfNeighbors[word_idx] # a dict
-
+        for i, word in enumerate(analyzedwordlist, 1):
+            ContextToNeighbors = WordToSharedContextsOfNeighbors[word] # a dict
             if not ContextToNeighbors:
                 continue
 
-            ContextToNeighbors = sorted_alphabetized(ContextToNeighbors.items(),
-                                        key=lambda x: len(x[1]), reverse=True,
-                                        subkey=lambda x:x[1])
+            # To ensure that the output is always the same, we need three
+            # rounds of sorting here:
+            #   1) sort alphabetically by the context str
+            #   2) reverse sort for sizes of neighbor lists
+            #   3) sort alphabetically for neighbor lists with the same size
 
+            ContextToNeighbors = sorted(ContextToNeighbors.items())
             # ContextToNeighbors is now a list of tuples, not a dict anymore
 
-            word = _worddict[word_idx]
+            ContextToNeighbors = sorted_alphabetized(ContextToNeighbors,
+                key=lambda x: len(x[1]), reverse=True, subkey=lambda x:x[1])
 
-            print("{} {} ({})".format(word_idx+1, word,
-                                      len(ContextToNeighbors)), file=f)
+            print("{} {} ({})".format(i, word, len(ContextToNeighbors)), file=f)
 
-            for context_idx, neighbor_indices in ContextToNeighbors:
-                context = " ".join(_contextdict[context_idx])
-                neighbors = " ".join([_worddict[i] for i in neighbor_indices])
-
+            for context, neighbors in ContextToNeighbors:
+                context = context.replace("\t", " ")
+                neighbors = " ".join(neighbors)
                 print("          {:20} | {}".format(context, neighbors), file=f)
 
             print(file=f)
 
 
-def output_ImportantContextToWords(outfilename, ImportantContextToWords,
-                                   contextdict, worddict):
+def output_ImportantContextToWords(outfilename, ImportantContextToWords):
 
-    _contextdict = {v:k for k,v in contextdict.items()} # from index to context tuple
-    _worddict = {v:k for k,v in worddict.items()} # from index to word
     ImportantContextToWords_sorted = sorted_alphabetized(
-                                        ImportantContextToWords.items(),
-                                        key=lambda x: len(x[1]), reverse=True)
+        ImportantContextToWords.items(), key=lambda x: len(x[1]), reverse=True)
 
-    context_str_list = [" ".join(_contextdict[context_index])
-                        for context_index, v in ImportantContextToWords_sorted]
-    max_key_length = max([len(x) for x in context_str_list])
+    context_list = [context.replace("\t", " ")
+                        for context, v in ImportantContextToWords_sorted]
+    max_key_length = max([len(x) for x in context_list])
 
     WordToCount_list = [WordToCount for _, WordToCount in ImportantContextToWords_sorted]
 
     with outfilename.open("w") as f:
-        for context_str, WordToCount in zip(context_str_list, WordToCount_list):
-            print("{} {}".format(context_str.ljust(max_key_length),
-                                 len(WordToCount)), file=f)
+        for context, WordToCount in zip(context_list, WordToCount_list):
+            print("{} {}".format(context.ljust(max_key_length), 
+                len(WordToCount)), file=f)
         print(file=f)
 
-        for context_str, WordToCount in zip(context_str_list, WordToCount_list):
+        for context, WordToCount in zip(context_list, WordToCount_list):
             if not WordToCount:
                 continue
 
             print("\n===============================================\n", file=f)
-            print("{} {}".format(context_str.ljust(max_key_length),
-                                 len(WordToCount)), file=f)
+            print("{} {}".format(context.ljust(max_key_length),
+                len(WordToCount)), file=f)
             print(file=f)
 
             WordToCount_sorted = sorted_alphabetized(WordToCount.items(),
-                                    key=lambda x :x[1], reverse=True)
+                key=lambda x :x[1], reverse=True)
 
             # don't use "count" as a variable (it's the name of a function in python)
-            max_word_length = max([len(_worddict[word_no])
-                                   for word_no, c in WordToCount_sorted])
+            max_word_length = max([len(word)
+                for word, c in WordToCount_sorted])
 
-            for word_no, c in WordToCount_sorted:
+            for word, c in WordToCount_sorted:
                 print("        {} {}".format(
-                          _worddict[word_no].ljust(max_word_length), c), file=f)
+                    word.ljust(max_word_length), c), file=f)
 
 
 #------------------------------------------------------------------------------#

@@ -119,8 +119,6 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
                                        "_WordToContexts.json")
     outContextToWords_json = Path(outcontextsfolder, corpusName + \
                                        "_ContextToWords.json")
-    outworddict_json = Path(outcontextsfolder, corpusName + "_worddict.json")
-    outcontextdict_json = Path(outcontextsfolder, corpusName + "_contextdict.json")
 
     # now ready to do the actual work...
 
@@ -161,16 +159,14 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     print('Computing nearest neighbors now... ', flush=True)
     closestNeighbors = compute_closest_neighbors(wordsdistance, nNeighbors)
 
-    WordToNeighbors_by_str = OrderedDict()
-    WordToNeighbors = dict()
+    WordToNeighbors = OrderedDict()
 
     for wordno in range(nWordsForAnalysis):
         line = closestNeighbors[wordno]
         word_idx, neighbors_idx = line[0], line[1:]
         word = analyzedwordlist[word_idx]
         neighbors = [analyzedwordlist[idx] for idx in neighbors_idx]
-        WordToNeighbors_by_str[word] = neighbors
-        WordToNeighbors[word_idx] = neighbors_idx
+        WordToNeighbors[word] = neighbors
 
     del closestNeighbors
 
@@ -180,10 +176,10 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
               "# Number of neighbors: {}\n".format(language, corpus,
                                          nWordsForAnalysis, nNeighbors), file=f)
 
-        for word, neighbors in WordToNeighbors_by_str.items():
+        for word, neighbors in WordToNeighbors.items():
             print(word, " ".join(neighbors), file=f)
 
-    neighbor_graph = GetMyGraph(WordToNeighbors_by_str)
+    neighbor_graph = GetMyGraph(WordToNeighbors)
 
     # output manifold as gexf data file
     nx.write_gexf(neighbor_graph, str(outfilenameNeighborGraph))
@@ -191,48 +187,36 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     # output manifold as json for d3 visualization
     manifold_json_data = json_graph.node_link_data(neighbor_graph)
     outfilenameManifoldJson = Path(outfolder, corpusName + "_manifold.json")
-    json.dump(manifold_json_data, outfilenameManifoldJson.open("w"), indent=2)
+    json.dump(manifold_json_data, outfilenameManifoldJson.open("w"))
 
     WordToNeighbors_json = changeFilenameSuffix(outfilenameNeighbors, ".json")
-    json_pdump(WordToNeighbors_by_str, WordToNeighbors_json.open("w"), asis=True)
+    json_pdump(WordToNeighbors, WordToNeighbors_json.open("w"), asis=True)
 
     print("Computing shared contexts among neighbors...", flush=True)
     WordToSharedContextsOfNeighbors, \
     ImportantContextToWords = compute_WordToSharedContextsOfNeighbors(
-                                        nWordsForAnalysis, WordToContexts,
-                                        WordToNeighbors, ContextToWords,
-                                        nNeighbors, mincontexts)
+        analyzedwordlist, WordToContexts, WordToNeighbors, ContextToWords,
+        mincontexts)
 
     output_WordToSharedContextsOfNeighbors(outfilenameSharedcontexts,
-                                        WordToSharedContextsOfNeighbors,
-                                        worddict, contextdict,
-                                        nWordsForAnalysis)
+        WordToSharedContextsOfNeighbors, analyzedwordlist)
 
     output_ImportantContextToWords(outfilenameImportantContextToWords,
-                                   ImportantContextToWords,
-                                   contextdict, worddict)
+        ImportantContextToWords)
 
     outputfilelist = [outfilenameNeighbors, outfilenameNeighborGraph,
                       WordToNeighbors_json, outfilenameSharedcontexts,
                       outfilenameImportantContextToWords,
-                      outfilenameManifoldJson, outworddict_json,
-                      outcontextdict_json]
+                      outfilenameManifoldJson]
 
-    # output WordToContexts, ContextTOWords (these two are in the index form)
-    #    also contextdict and worddict (from index to string)
+    # output WordToContexts, ContextTOWords
     outputfilelist.append(outWordToContexts_json)
-    json_pdump(WordToContexts, outWordToContexts_json.open("w"),
-               key=lambda x : len(x[1]), reverse=True)
+    json.dump(WordToContexts, outWordToContexts_json.open("w"),
+        separators=(',', ':'))
 
     outputfilelist.append(outContextToWords_json)
-    json_pdump(ContextToWords, outContextToWords_json.open("w"),
-               key=lambda x : len(x[1]), reverse=True)
-
-    json_pdump({word_index: word for word, word_index in worddict.items()},
-        outworddict_json.open("w"))
-
-    json_pdump({context_index: context for context, context_index in contextdict.items()},
-        outcontextdict_json.open("w"))
+    json.dump(ContextToWords, outContextToWords_json.open("w"),
+        separators=(',', ':'))
 
     # print to stdout the list of output files
     stdout_list("Output files:", *outputfilelist)

@@ -4,7 +4,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from .lxa5lib import (stdout_list, sorted_alphabetized, SEP_NGRAM
+from .lxa5lib import (stdout_list, sorted_alphabetized, SEP_NGRAM,
                      changeFilenameSuffix)
 
 #------------------------------------------------------------------------------#
@@ -64,7 +64,7 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     wordDict = Counter()
     trigramDict = Counter()
     bigramDict = Counter()
-    sep = SEP_NGRAMS
+    sep = SEP_NGRAM
     corpusCurrentSize = 0 # running word token count
 
     print('Reading the corpus file now...', flush=True)
