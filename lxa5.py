@@ -1,613 +1,258 @@
-#!/usr/bin/env python3
+#!usr/bin/env python3
 
-# John Goldsmith, 2012-
-# Jackson Lee, 2015-
-# Anton Melnikov, 2015-
+__author__ = "Jackson L. Lee"
 
-#------------------------------------------------------------------------------#
-
-import argparse
-import time
-from pathlib import Path
 import sys
+import os
+import json
+import argparse
+from pathlib import Path
 
-from lxa5_module import (read_word_freq_file, MakeBiSignatures,
-                         MakeStemToWords,
-                         MakeSigToStems, MakeAffixToSigs,
-                         MakeStemToSig, MakeWordToSigs,
-                         MakeWordToSigtransforms)
+from lxa5libgui import (__version__, CONFIG, CONFIG_FILENAME, PROGRAMS,
+                        PROGRAM_TO_DESCRIPTION, PROGRAM_TO_PARAMETERS)
 
-from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix, stdout_list, OutputLargeDict,
-                     load_config_for_command_line_help,
-                     determine_use_corpus, read_word_freq,
-                     sorted_alphabetized, get_wordlist_path_corpus_stem)
+from linguistica.lxa5lib import (determine_use_corpus, proceed_or_not)
 
-import ngrams
+from linguistica import signature
+from linguistica import ngram
+from linguistica import trie
+from linguistica import phon
+from linguistica import manifold
 
-#------------------------------------------------------------------------------#
-#        user modified variables
-#------------------------------------------------------------------------------#
-
-NumberOfCorrections = 100  # TODO: keep or not?
-
-#------------------------------------------------------------------------------#
-
-def makeArgParser(configfilename="config.json"):
-
-    language, \
-    corpus, \
-    datafolder, \
-    configtext = load_config_for_command_line_help(configfilename)
-
+def makeArgParser(config):
     parser = argparse.ArgumentParser(
-        description="This program computes morphological signatures.\n\n{}"
-                    .format(configtext),
+        description="This is the Linguistica {} program.".format(__version__),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument("--config", help="configuration filename",
-                        type=str, default=configfilename)
+    parser.add_argument("program", help="Specific program to run: "
+        "{}".format(", ".join(sorted(PROGRAMS))),
+        type=str, default=None)
 
     parser.add_argument("--language", help="Language name",
-                        type=str, default=None)
+        type=str, default=config["language"])
     parser.add_argument("--corpus", help="Corpus file to use",
-                        type=str, default=None)
+        type=str, default=config["corpus"])
     parser.add_argument("--datafolder", help="path of the data folder",
-                        type=str, default=None)
+        type=str, default=config["datafolder"])
+
+    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
+        " if zero, then the program reads all word tokens in the corpus",
+        type=int, default=config["max_word_tokens"])
 
     parser.add_argument("--minstem", help="Minimum stem length; "
-                        "usually from 2 to 5, where a smaller number means "
-                        "you can find shorter stems although the program "
-                        "may run a lot slower",
-                        type=int, default=4)
+        "usually from 2 to 5, where a smaller number means you can find "
+        "shorter stems although the program may run a lot slower",
+        type=int, default=config["min_stem_length"])
     parser.add_argument("--maxaffix", help="Maximum affix length; "
-                        "usually from 1 to 5, where a larger number means "
-                        "you can find longer affixes",
-                        type=int, default=3)
-    parser.add_argument("--minsig", help="Minimum number of signature use; "
-                        "a small number like 5 is pretty much the smallest "
-                        "to use in order to filter spurious signatures; may "
-                        "try larger numbers like 10 or 20 and so forth",
-                        type=int, default=5)
-    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
-                        " if this is zero, then the program counts "
-                        "all word tokens in the corpus",
-                        type=int, default=0)
+        "usually from 1 to 5 -- a larger number means possibly longer affixes",
+        type=int, default=config["max_affix_length"])
+    parser.add_argument("--minsiguse", help="Minimum number of signature use; "
+        "a small number like 5 is pretty much the smallest to use in order to "
+        "filter spurious signatures; may try larger numbers like 10 or 20",
+        type=int, default=config["min_sig_use"])
+
+    parser.add_argument("--minaffix", help="Minimum affix length",
+        type=int, default=config["min_affix_length"])
+    parser.add_argument("--minsfpfcount", help="Minimum size of "
+        "successors/predecessors for output",
+        type=int, default=config["min_sf_pf_count"])
+
+    parser.add_argument("--maxwordtypes", help="Number of word types to handle",
+        type=int, default=config["max_word_types"])
+    parser.add_argument("--neighbors", help="Number of neighbors",
+        type=int, default=config["n_neighbors"])
+    parser.add_argument("--eigenvectors", help="Number of eigenvectors",
+        type=int, default=config["n_eigenvectors"])
+
+    parser.add_argument("--mincontextuse", help="Minimum number of times that "
+        "a word occurs in a context; also minimum number of neighbors for a "
+        "word that share a context (for WordToSharedContextsOfNeighbors)",
+        type=int, default=config["min_context_use"])
+
     return parser
 
-# remove this function?
-def create_wordlist(language, filename, datafolder,
-                    minimum_stem_length=None, maxwordtokens=0):
-    ngram_path = Path(datafolder, language, 'ngrams')
-    infilepath = Path(ngram_path, filename)
-    word_freq_dict = read_word_freq_file(infilepath,
-                                         minimum_stem_length, maxwordtokens)
 
-    wordlist = sorted(word_freq_dict.keys())
-    return wordlist, word_freq_dict
-
-
-def main(language=None, corpus=None, datafolder=None, filename=None,
-         MinimumStemLength=4, MaximumAffixLength=3, MinimumNumberofSigUses=5,
-         maxwordtokens=0, use_corpus=True):
-
-    print("\n*****************************************************\n"
-          "Running the lxa5.py program now...\n")
-
-    # -------------------------------------------------------------------------#
-    #       decide suffixing or prefixing
-    # -------------------------------------------------------------------------#
-
-    suffix_languages = {"english",
-                        "french",
-                        "hungarian",
-                        "turkish",
-                        "russian",
-                        "german",
-                        "spanish",
-                        'test'}
-    prefix_languages = {"swahili"}
-
-    if str(language).casefold() in prefix_languages:
-        FindSuffixesFlag = False  # prefixal
-    else:
-        FindSuffixesFlag = True  # suffixal
-
-    wordlist_path, corpus_stem = get_wordlist_path_corpus_stem(language, corpus,
-                                datafolder, filename, maxwordtokens, use_corpus)
-
-    print("wordlist file path:\n{}\n".format(wordlist_path))
-
-    if not wordlist_path.exists():
-        if use_corpus:
-            if maxwordtokens:
-                warning = " ({} tokens)".format(maxwordtokens)
-            else:
-                warning = ""
-            print("\nWordlist for {}{} not found.\n"
-                  "ngrams.py is now run.\n".format(corpus, warning))
-            ngrams.main(language=language, corpus=corpus,
-                        datafolder=datafolder, filename=filename,
-                        maxwordtokens=maxwordtokens)
-        else:
-            sys.exit("\nThe specified wordlist ""\n"
-                     "is not found.".format(wordlist_path))
-
-    wordFreqDict = read_word_freq(wordlist_path)
-    wordlist = sorted(wordFreqDict.keys())
-
-    if filename:
-        outfolder = Path(Path(filename).parent, "lxa")
-    else:
-        outfolder = Path(datafolder, language, 'lxa')
-
-    if not outfolder.exists():
-        outfolder.mkdir(parents=True)
-
-    # TODO -- filenames not yet used in main()
-    outfile_Signatures_name = str(outfolder) + corpus_stem + "_Signatures.txt"
-    outfile_SigTransforms_name = str(outfolder) + corpus_stem + "_SigTransforms.txt"
-    outfile_FSA_name = str(outfolder) + corpus_stem + "_FSA.txt"
-    outfile_FSA_graphics_name = str(outfolder) + corpus_stem + "_FSA_graphics.png"
-
-    # -------------------------------------------------------------------------#
-    #   create: BisigToTuple
-    #                  (key: tuple of bisig | value: set of (stem, word1, word2)
-    #           StemToWords (key: stem | value: set of words)
-    #           SigToStems  (key: tuple of sig | value: set of stems )
-    #           StemToSig   (key: str of stem  | value: tuple of sig )
-    #           WordToSigs  (key: str of word  | value: set of sigs )
-    #           AffixToSigs (key: str of affix | value: set of sigs )
-    # -------------------------------------------------------------------------#
-
-    BisigToTuple = MakeBiSignatures(wordlist, MinimumStemLength,
-                                    MaximumAffixLength, FindSuffixesFlag)
-    print("BisigToTuple ready", flush=True)
-
-    StemToWords = MakeStemToWords(BisigToTuple, MinimumNumberofSigUses)
-    print("StemToWords ready", flush=True)
-
-    SigToStems = MakeSigToStems(StemToWords, MaximumAffixLength,
-                                MinimumNumberofSigUses, FindSuffixesFlag)
-    print("SigToStems ready", flush=True)
-
-    StemToSig = MakeStemToSig(SigToStems)
-    print("StemToSig ready", flush=True)
-
-    WordToSigs = MakeWordToSigs(StemToWords, StemToSig)
-    print("WordToSigs ready", flush=True)
-
-    WordToSigtransforms = MakeWordToSigtransforms(WordToSigs)
-    print("WordToSigtransforms ready", flush=True)
-
-    AffixToSigs = MakeAffixToSigs(SigToStems)
-    print("AffixToSigs ready", flush=True)
-
-    # -------------------------------------------------------------------------#
-    #   generate graphs for several dicts
-    # -------------------------------------------------------------------------#
-    #    GenerateGraphFromDict(StemToWords, outfolder, 'StemToWords.gexf')
-    #    GenerateGraphFromDict(SigToStems, outfolder, 'SigToStems.gexf')
-    #    GenerateGraphFromDict(WordToSigs, outfolder, 'WordToSigs.gexf')
-    #    GenerateGraphFromDict(StemToSig, outfolder, 'StemToSig.gexf')
-    # -------------------------------------------------------------------------#
-
-    # -------------------------------------------------------------------------#
-    #      output stem file
-    # -------------------------------------------------------------------------#
-
-    stemfilename = Path(outfolder, '{}_StemToWords.txt'.format(corpus_stem))
-    OutputLargeDict(stemfilename, StemToWords, key=lambda x: len(x[1]),
-                    reverse=True,
-                    min_cell_width=25, howmanyperline=5)
-
-    print('===> stem file generated:', stemfilename, flush=True)
-
-    # -------------------------------------------------------------------------#
-    #      output affix file
-    # -------------------------------------------------------------------------#
-
-    affixfilename = Path(outfolder, '{}_AffixToSigs.txt'.format(corpus_stem))
-    OutputLargeDict(affixfilename, AffixToSigs, min_cell_width=25,
-                    key=lambda x: len(x[1]), reverse=True,
-                    howmanyperline=5, SignatureValues=True)
-    print('===> affix file generated:', affixfilename, flush=True)
-
-    # -------------------------------------------------------------------------#
-    #   output SigToStems
-    # -------------------------------------------------------------------------#
-
-    SigToStems_outfilename = Path(outfolder, corpus_stem + "_SigToStems.txt")
-    OutputLargeDict(SigToStems_outfilename, SigToStems, key=lambda x: len(x[1]),
-                    reverse=True,
-                    howmanyperline=5, SignatureKeys=True)
-
-    SigToStems_outfilename_json = changeFilenameSuffix(SigToStems_outfilename,
-                                                       ".json")
-    json_pdump(SigToStems, SigToStems_outfilename_json.open("w"),
-               key=lambda x : len(x[1]), reverse=True)
-
-    print('===> output file generated:', SigToStems_outfilename, flush=True)
-    print('===> output file generated:', SigToStems_outfilename_json, flush=True)
-
-    # -------------------------------------------------------------------------#
-    #   output WordToSigs
-    # -------------------------------------------------------------------------#
-
-    WordToSigs_outfilename = Path(outfolder, corpus_stem + "_WordToSigs.txt")
-    OutputLargeDict(WordToSigs_outfilename, WordToSigs, key=lambda x: len(x[1]),
-                    reverse=True,
-                    min_cell_width=25, SignatureValues=True)
-
-    WordToSigs_outfilename_json = changeFilenameSuffix(WordToSigs_outfilename,
-                                                       ".json")
-    json_pdump(WordToSigs, WordToSigs_outfilename_json.open("w"),
-               key=lambda x : len(x[1]), reverse=True)
-
-    print('===> output file generated:', WordToSigs_outfilename, flush=True)
-    print('===> output file generated:', WordToSigs_outfilename_json, flush=True)
-
-    # -------------------------------------------------------------------------#
-    #   output WordToSigtransforms
-    # -------------------------------------------------------------------------#
-
-    WordToSigtransforms_outfilename = Path(outfolder,
-                                        corpus_stem + "_WordToSigtransforms.txt")
-    OutputLargeDict(WordToSigtransforms_outfilename, WordToSigtransforms,
-                    min_cell_width=25, sigtransforms=True,
-                    key=lambda x: len(x[1]), reverse=True)
-    print('===> output file generated:',
-          WordToSigtransforms_outfilename, flush=True)
-
-    WordToSigtransforms_outfilename_json = changeFilenameSuffix(
-                                  WordToSigtransforms_outfilename, ".json")
-    json_pdump(WordToSigtransforms,
-               WordToSigtransforms_outfilename_json.open("w"),
-               key=lambda x : len(x[1]), reverse=True)
-    print('===> output file generated:',
-          WordToSigtransforms_outfilename_json, flush=True)
-
-    # -------------------------------------------------------------------------#
-    #   output the most freq word types not in any induced paradigms {the, of..}
-    # -------------------------------------------------------------------------#
-
-    wordFreqDict_sorted = sorted_alphabetized(wordFreqDict.items(),
-                                              key=lambda x: x[1], reverse=True)
-
-    mostFreqWordsNotInSigs_outfilename = Path(outfolder,
-                                              corpus_stem +
-                                              "_mostFreqWordsNotInSigs.txt")
-
-    with mostFreqWordsNotInSigs_outfilename.open('w') as f:
-        for (word, freq) in wordFreqDict_sorted:
-            if word not in WordToSigs:
-                print(word, freq, file=f)
-            else:
-                break
-
-    print('===> output file generated:',
-          mostFreqWordsNotInSigs_outfilename, flush=True)
-
-    # -------------------------------------------------------------------------#
-    #   output the word types in induced paradigms
-    # -------------------------------------------------------------------------#
-
-    WordsInSigs_outfilename = Path(outfolder, corpus_stem + "_WordsInSigs.txt")
-
-    with WordsInSigs_outfilename.open('w') as f:
-        for (word, freq) in wordFreqDict_sorted:
-            if word in WordToSigs:
-                print(word, freq, file=f)
-
-    print('===> output file generated:',
-          WordsInSigs_outfilename, flush=True)
-
-    # -------------------------------------------------------------------------#
-    #   output the word types NOT in induced paradigms
-    # -------------------------------------------------------------------------#
-
-    WordsNotInSigs_outfilename = Path(outfolder,
-                                      corpus_stem + "_WordsNotInSigs.txt")
-
-    with WordsNotInSigs_outfilename.open('w') as f:
-        for (word, freq) in wordFreqDict_sorted:
-            if word not in WordToSigs:
-                print(word, freq, file=f)
-
-    print('===> output file generated:',
-          WordsNotInSigs_outfilename, flush=True)
-
-
-# -----------------------------------------------------------------------------#
-
-# TODO: bring the following back later
-
-def to_be_handled():
-    # ------------------------------------------------------------------------------#
-    #        input and output files
-    # ------------------------------------------------------------------------------#
-
-    Signatures_outfile = open(outfile_Signatures_name, 'w')
-
-    SigTransforms_outfile = open(outfile_SigTransforms_name, 'w')
-
-    FSA_outfile = open(outfile_FSA_name, 'w')
-
-    # July 15, 2014, Jackson Lee
-
-    outfile_Signatures_name_JL = outfolder + corpus_stem + "_Signatures-JL.txt"
-    Signatures_outfile_JL = open(outfile_Signatures_name_JL, 'w')
-
-
-
-    # ------------------------------------------------------------------------------#
-    #       write log file header | TODO keep this part or rewrite?
-    # ------------------------------------------------------------------------------#
-
-    #    outfile_log_name            = outfolder + corpus_stem + "_log.txt"
-    #    log_file = open(outfile_log_name, "w")
-    #    print("Language:", language, file=log_file)
-    #    print("Minimum Stem Length:", MinimumStemLength,
-    #          "\nMaximum Affix Length:", MaximumAffixLength,
-    #          "\n Minimum Number of Signature uses:", MinimumNumberofSigUses,
-    #          file=log_file)
-    #    print("Date:", end=' ', file=log_file)
-
-
-
-
-
-    # ------------------------------------------------------------------------------#
-    # ------------------------------------------------------------------------------#
-    #                     Main part of program                              #
-    # ------------------------------------------------------------------------------#
-    # ------------------------------------------------------------------------------#
-
-    # For the following dicts ---
-    # BisigToTuple:  keys are tuples of bisig   Its values are (stem, word1, word2)
-    # SigToStems:    keys are signatures.  Its values are *sets* of stems. 
-    # StemToWord:    keys are stems.       Its values are *sets* of words.
-    # StemToSig:     keys are stems.       Its values are individual signatures.
-    # WordToSig:     keys are words.       Its values are *lists* of signatures.
-    # StemCounts:    keys are words.      Its values are corpus counts of stems.
-
-
-    BisigToTuple = {}
-    SigToStems = {}
-    WordToSig = {}
-    StemToWord = {}
-    StemCounts = {}
-    StemToSig = {}
-    numberofwords = len(wordlist)
-
-
-
-    # ------------------------------------------------------------------------------#
-    #    1. Make signatures, and WordToSig dictionary,
-    #       and Signature dictionary-of-stem-lists, and StemToSig dictionary
-    # ------------------------------------------------------------------------------#
-    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    print("1.                Make signatures 1")
-    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    # ------------------------------------------------------------------------------#
-    #    1a. Declare a linguistica-style FSA
-    # ------------------------------------------------------------------------------#
-
-    splitEndState = True
-    morphology = FSA_lxa(splitEndState)
-
-    # ------------------------------------------------------------------------------#
-    #    1b. Find signatures, and put them in the FSA also.
-    # ------------------------------------------------------------------------------#
-
-    SigToStems, WordToSig, StemToSig = MakeSignatures(StemToWord,
-                                                      FindSuffixesFlag, MinimumNumberofSigUses)
-
-    # ------------------------------------------------------------------------------#
-    #    1c. Print the FSA to file.
-    # ------------------------------------------------------------------------------#
-
-    # print "line 220", outfile_FSA_name # TODO: what's this line for?
-
-    # morphology.printFSA(FSA_outfile)
-
-
-    # ------------ Added Sept 24 (year 2013) for Jackson's program -----------------#
-    if True:
-        printSignatures(SigToStems, WordToSig, StemCounts,
-                        Signatures_outfile, g_encoding, FindSuffixesFlag)
-        # added July 15, 2014, Jackson Lee
-        printSignaturesJL(SigToStems, WordToSig, StemCounts,
-                          Signatures_outfile_JL, g_encoding, FindSuffixesFlag)
-    Signatures_outfile_JL.close()
-
-
-
-    # ------------------------------------------------------------------------------#
-    # 5. Look to see which signatures could be improved, and score the improvement
-    #    quantitatively with robustness.
-    # Then we improve the one whose robustness increase is the greatest.
-    # ------------------------------------------------------------------------------#
-
-    print("***", file=Signatures_outfile)
-    print("*** 5. Finding robust suffixes in stem sets\n\n", file=Signatures_outfile)
-
-
-    # ------------------------------------------------------------------------------#
-    #    5a. Find morphemes within edges: how many times? NumberOfCorrections
-    # ------------------------------------------------------------------------------#
-
-    for loopno in range(NumberOfCorrections):
-        # -------------------------------------------------------------------------#
-        #    5b. For each edge, find best peripheral piece that might be 
-        #           a separate morpheme.
-        # -------------------------------------------------------------------------#
-        morphology.find_highest_weight_affix_in_an_edge(Signatures_outfile,
-                                                        FindSuffixesFlag)
-
-    # ------------------------------------------------------------------------------#
-    #    5c. Print graphics based on each state.
-    # ------------------------------------------------------------------------------#
-    if True:
-        for state in morphology.States:
-            graph = morphology.createPySubgraph(state)
-            if len(graph.edges()) < 4:
-                continue
-            graph.layout(prog='dot')
-            filename = outfolder + 'morphology' + str(state.index) + '.png'
-            graph.draw(filename)
-            filename = outfolder + 'morphology' + str(state.index) + '.dot'
-            graph.write(filename)
-
-
-    # ------------------------------------------------------------------------------#
-    #    5d. Print FSA again, with these changes.
-    # ------------------------------------------------------------------------------#
-
-    if True:
-        morphology.printFSA(FSA_outfile)
-
-
-    # ------------------------------------------------------------------------------#
-    localtime1 = time.asctime(time.localtime(time.time()))
-    print("Local current time :", localtime1)
-
-    morphology.dictOfLists_parses = morphology.parseWords(wordlist)
-
-    localtime2 = time.asctime(time.localtime(time.time()))
-    # print "Time to parse all words: ", localtime2 - localtime1
-
-
-    # ------------------------------------------------------------------------------#
-
-
-    print("Finding common stems across edges.", file=FSA_outfile)
-    HowManyTimesToCollapseEdges = 9
-    for loop in range(HowManyTimesToCollapseEdges):
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print("Loop number", loop)
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        (commonEdgePairs, EdgeToEdgeCommonMorphs) = morphology.findCommonStems()
-        # We now have a list of pairs of edges, sorted by how many stems they share in common. 
-        # In the current implementation, we consider only pairs of edges that have a common mother or daughter....    
-
-
-        if len(commonEdgePairs) == 0:
-            print("There are no more pairs of edges to consider.")
-            break
-        edge1, edge2 = commonEdgePairs[0]
-        state1 = edge1.fromState
-        state2 = edge2.fromState
-        state3 = edge1.toState
-        state4 = edge2.toState
-        print("\n\nWe are considering merging edge ", edge1.index, "(", edge1.fromState.index, "->",
-              edge1.toState.index, ") and  edge", edge2.index, "(", edge2.fromState.index, "->", edge2.toState.index,
-              ")")
-
-        print("Printed graph", str(loop), "before_merger")
-        graph = morphology.createDoublePySubgraph(state1, state2)
-        graph.layout(prog='dot')
-        filename = outfolder + corpus_stem + str(loop) + '_before_merger' + str(state1.index) + "-" + str(
-            state2.index) + '.png'
-        graph.draw(filename)
-
-        if state1 == state2:
-            print("The from-States are identical")
-            state_changed_1 = state1
-            state_changed_2 = state2
-            morphology.mergeTwoStatesCommonMother(state3, state4)
-            morphology.EdgePairsToIgnore.append((edge1, edge2))
-
-        elif state3 == state4:
-            print("The to-States are identical")
-            state_changed_1 = state3
-            state_changed_2 = state4
-            morphology.mergeTwoStatesCommonDaughter(state1, state2)
-            morphology.EdgePairsToIgnore.append((edge1, edge2))
-
-        elif morphology.mergeTwoStatesCommonMother(state1, state2):
-            print("Now we have merged two sister edges from line 374 **********")
-            state_changed_1 = state1
-            state_changed_2 = state2
-            morphology.EdgePairsToIgnore.append((edge1, edge2))
-
-
-        elif morphology.mergeTwoStatesCommonDaughter((state3, state4)):
-            print("Now we have merged two daughter edges from line 377 **********")
-            state_changed_1 = state3
-            state_changed_2 = state4
-            morphology.EdgePairsToIgnore.append((edge1, edge2))
-
-        graph = morphology.createDoublePySubgraphcreatePySubgraph(state1)
-        graph.layout(prog='dot')
-        filename = outfolder + str(loop) + '_after_merger_' + str(state_changed_1.index) + "-" + str(
-            state_changed_2.index) + '.png'
-        print("Printed graph", str(loop), "after_merger")
-        graph.draw(outfile_FSA_graphics_name)
-
-    # ---------------------------------------------------------------------------------------------------------------------------#
-    # We create a list of words, each word with its signature transform (so DOGS is turned into NULL.s_s, for example)
-
-    if True:
-        printWordsToSigTransforms(SigToStems, WordToSig, StemCounts, SigTransforms_outfile, g_encoding,
-                                  FindSuffixesFlag)
-
-
-    # ---------------------------------------------------------------------------------------------------------------------------#
-    # ---------------------------------------------------------------------------------#
-    #    Close output files
-    # ---------------------------------------------------------------------------------#
-
-    FSA_outfile.close()
-    Signatures_outfile.close()
-    SigTransforms_outfile.close()
-
-
-    # ---------------------------------------------------------------------------------#
-    #    Logging information
-    # ---------------------------------------------------------------------------------#
-
-    localtime = time.asctime(time.localtime(time.time()))
-    print("Local current time :", localtime)
-
-    numberofwords = len(wordlist)
-    logfilename = outfolder + "logfile.txt"
-    logfile = open(logfilename, "a")
-
-    print(outfile_Signatures_name.ljust(60),
-          '%30s wordcount: %8d data source:' % (localtime, numberofwords),
-          infilename.ljust(50), file=logfile)
+def load_config():
+    print("\tlocating {} in the current directory... ".format(CONFIG_FILENAME),
+        end="", flush=True)
+
+    # read the configuration file (if present), and initialize "config"
+    try:
+        config = json.load(open(CONFIG_FILENAME))
+        print("found", flush=True)
+    except FileNotFoundError:
+        config = CONFIG
+        json.dump(config, open(CONFIG_FILENAME, "w"))
+        print("not found\n\tdefault settings are used", flush=True)
+
+    # make sure that the "config" dict has ALL the expected keys
+    expected_keys = CONFIG.keys()
+    for k in expected_keys:
+        if k not in config:
+            config[k] = CONFIG[k]
+
+    return config
 
 
 if __name__ == "__main__":
 
-    args = makeArgParser().parse_args()
+    # welcome
+    print("\n***************************************************************\n"
+          "Linguistica {}\n".format(__version__), flush=True)
 
-    MinimumStemLength = args.minstem
-    MaximumAffixLength = args.maxaffix
-    MinimumNumberofSigUses = args.minsig
-    maxwordtokens = args.maxwordtokens
+    # print current directory
+    print("Current directory:\n{}\n".format(os.getcwd()), flush=True)
 
-    description="You are running {}.\n".format(__file__) + \
-                "This program computes morphological signatures.\n" + \
-                "MinimumStemLength = {}\n".format(MinimumStemLength) + \
-                "MaximumAffixLength = {}\n".format(MaximumAffixLength) + \
-                "MinimumNumberofSigUses = {}\n".format(MinimumNumberofSigUses) + \
-                "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
+    # load configuration file (if present) from current directory
+    print("Loading configuration...", flush=True)
+    config = load_config()
+    print("\tconfiguration loaded\n", flush=True)
 
-    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                      args.corpus, args.datafolder, args.config,
-                                      description=description,
-                                      scriptname=__file__)
+    # load command line arguments
+    print("Loading command line arguments... ", end="", flush=True)
+    args = makeArgParser(config).parse_args()
 
-    use_corpus = determine_use_corpus()
+    program = args.program
+    language = args.language
+    corpus = args.corpus
+    datafolder = args.datafolder
 
-    main(language=language, corpus=corpus, datafolder=datafolder,
-         MinimumStemLength=MinimumStemLength,
-         MaximumAffixLength=MaximumAffixLength,
-         MinimumNumberofSigUses=MinimumNumberofSigUses,
-         maxwordtokens=maxwordtokens, use_corpus=use_corpus)
+    max_word_tokens = args.maxwordtokens
+    min_stem_length = args.minstem
+    max_affix_length = args.maxaffix
+    min_sig_use = args.minsiguse
+    min_affix_length = args.minaffix
+    min_sf_pf_count = args.minsfpfcount
+    n_neighbors = args.neighbors
+    n_eigenvectors = args.eigenvectors
+    min_context_use = args.mincontextuse
+    max_word_types = args.maxwordtypes
+    print("done\n", flush=True)
 
+    # make sure that "program" is one of the valid programs
+    if not program:
+        sys.exit("No specific program is specified.\n"
+                 "Run \"python3 lxa5.py -h\" for details.")
+    program = program.casefold()
+    if program not in PROGRAMS:
+        sys.exit("{} is not one of the programs.\n"
+                 "Run \"python3 lxa5.py -h\" for details.".format(program))
+    print("You are running the {} program.\n"
+          "{}\n".format(program, PROGRAM_TO_DESCRIPTION[program]), flush=True)
+
+    # make sure that none of "language", "corpus", and "datafolder" are empty
+    write_new_config = False
+    if not language or not corpus or not datafolder:
+        write_new_config = True
+        print("At least one of the {language, corpus, datafolder} values is\n"
+            "empty. You are now prompted to provide what is missing.\n", 
+            flush=True)
+        while not language:
+            language = input("Language: ")
+            language = language.strip().casefold()
+        while not corpus:
+            corpus = input("Corpus filename (including file extension name): ")
+            corpus = corpus.strip().casefold()
+        while not datafolder:
+            datafolder = input("Datafolder (relative to current directory): ")
+            datafolder = datafolder.strip().casefold()
+        print(flush=True)
+
+    # make sure the expected input file (based on "language", "corpus", and
+    # "datafolder") exists
+    corpus_filename_path = Path(datafolder, language, corpus)
+    if not corpus_filename_path.exists():
+        sys.exit("The file {}\n relative to the current directory "
+            "does not exist.".format(corpus_filename_path))
+    print("The specified input data file relative to the current directory:\n"
+          "{}\n".format(corpus_filename_path), flush=True)
+
+    # print the relevant parameters
+    print("The parameters relevant to the {} program "
+          "are as follows:\n\t{}".format(program,
+          "\n\t".join([parameter + " = " + str(eval(parameter))
+              for parameter in PROGRAM_TO_PARAMETERS[program]])), flush=True)
+    if "max_word_tokens" in PROGRAM_TO_PARAMETERS[program]:
+        print("\t(If max_word_tokens is 0, "
+              "all word tokens are handled.)\n", flush=True)
+    else:
+        print(flush=True)
+
+    proceed_or_not()
+
+    # run the specified program
+
+    use_corpus = True # By default, the input data file is a corpus text file,
+                      # unless a wordlist is used instead
+                      # (for signature, trie, and phon)
+
+    if program == "ngram":
+        ngram.main(language=language, corpus=corpus, datafolder=datafolder,
+             maxwordtokens=max_word_tokens)
+
+    elif program == "signature":
+        use_corpus = determine_use_corpus()
+        signature.main(language=language, corpus=corpus, datafolder=datafolder,
+             MinimumStemLength=min_stem_length,
+             MaximumAffixLength=max_affix_length,
+             MinimumNumberofSigUses=min_sig_use,
+             maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+
+    elif program == "trie":
+        use_corpus = determine_use_corpus()
+        trie.main(language=language, corpus=corpus, datafolder=datafolder,
+             MinimumStemLength=min_stem_length,
+             MinimumAffixLength=min_affix_length,
+             SF_threshold=min_sf_pf_count,
+             maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+
+    elif program == "phon":
+        use_corpus = determine_use_corpus()
+        phon.main(language=language, corpus=corpus, datafolder=datafolder,
+             maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+
+    elif program == "manifold":
+        manifold.main(language=language, corpus=corpus, datafolder=datafolder,
+             maxwordtypes=max_word_types, nNeighbors=n_neighbors,
+             nEigenvectors=n_eigenvectors,
+             mincontexts=min_context_use)
+
+    # check if the corpus text file has been run before, and keep track of it
+    if use_corpus:
+        # if use_corpus is False, then a wordlist (not a corpus text) was
+        # used as input data. So in this case we don't change
+        # "last_filename" and "filenames_run" which are only for corpora
+        # text files
+        corpus_filename_abspath = os.path.abspath(str(corpus_filename_path))
+        if corpus_filename_abspath not in config["filenames_run"]:
+            config["filenames_run"].append(corpus_filename_abspath)
+            write_new_config = True
+        if corpus_filename_abspath != config["last_filename"]:
+            config["last_filename"] = corpus_filename_abspath
+            write_new_config = True
+
+    # if at least one of the parameters have been changed by the command line
+    # input, then rewrite the configuration file
+    if len(sys.argv) > 2 or write_new_config:
+
+        config["language"] = language
+        config["corpus"] = corpus
+        config["datafolder"] = datafolder
+
+        config["max_word_tokens"] = max_word_tokens
+        config["min_stem_length"] = min_stem_length
+        config["max_affix_length"] = max_affix_length
+        config["min_sig_use"] = min_sig_use
+        config["min_affix_length"] = min_affix_length
+        config["min_sf_pf_count"] = min_sf_pf_count
+        config["n_neighbors"] = n_neighbors
+        config["n_eigenvectors"] = n_eigenvectors
+        config["min_context_use"] = min_context_use
+        config["max_word_types"] = max_word_types
+
+        json.dump(config, open(CONFIG_FILENAME, "w"))
+        print("New configuration file written", flush=True)
+
+    # exit message
+    print("End of the Linguistica program", flush=True)
 

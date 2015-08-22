@@ -9,8 +9,8 @@ from pprint import pprint
 import numpy as np
 import networkx as nx
 
-from lxa5lib import (read_corpus_file, SEP_SIG, SEP_SIGTRANSFORM)
-import ngrams
+from .lxa5lib import (read_corpus_file, SEP_SIG, SEP_SIGTRANSFORM)
+from . import ngram
 # from fsm import State, Transducer, get_graph
 
 
@@ -48,7 +48,7 @@ def read_word_freq_file(infilename: Path,
     infilename = Path(datafolder, language, 'ngrams', corpusName + '_words.txt')
 
     if not infilename.exists():
-        ngrams.main(language, corpus, datafolder, maxwordtokens)
+        ngram.main(language, corpus, datafolder, maxwordtokens)
 
     word_freqs = read_corpus_file(infilename, casefold=casefold)
     return word_freqs

@@ -7,55 +7,11 @@
 # Jackson Lee 2015
 
 import sys
-import argparse
 from pathlib import Path
 
-import ngrams
-from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix, stdout_list,
-                     load_config_for_command_line_help,
-                     determine_use_corpus, get_wordlist_path_corpus_stem,
-                     read_word_freq)
-
-import ngrams
-
-def makeArgParser(configfilename="config.json"):
-
-    language, \
-    corpus, \
-    datafolder, \
-    configtext = load_config_for_command_line_help(configfilename)
-
-    parser = argparse.ArgumentParser(
-        description="The program computes tries given corpus data.\n\n{}"
-                    .format(configtext),
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument("--config", help="configuration filename",
-                        type=str, default=configfilename)
-
-    parser.add_argument("--language", help="Language name",
-                        type=str, default=None)
-    parser.add_argument("--corpus", help="Corpus file to use",
-                        type=str, default=None)
-    parser.add_argument("--datafolder", help="relative path of the data folder",
-                        type=str, default=None)
-
-    parser.add_argument("--minstem", help="Minimum stem length; "
-                        "usually from 2 to 5, where a smaller number means "
-                        "you can find shorter stems although the program "
-                        "may run a lot slower",
-                        type=int, default=4)
-    parser.add_argument("--minaffix", help="Minimum affix length",
-                        type=int, default=1)
-    parser.add_argument("--minsize",  help="Minimum size of "
-                                           "successors/predecessors for output",
-                        type=int, default=3)
-    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
-                        " if this is zero, then the program counts "
-                        "all word tokens in the corpus",
-                        type=int, default=0)
-    return parser
+from . import ngram
+from .lxa5lib import (json_pdump, changeFilenameSuffix, stdout_list,
+                     get_wordlist_path_corpus_stem, read_word_freq)
 
 
 def findBreaksInWords(wordlist, MinimumStemLength):
@@ -245,7 +201,7 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
          maxwordtokens=0, use_corpus=True):
 
     print("\n*****************************************************\n"
-          "Running the tries.py program now...\n")
+          "Running the trie component of Linguistica now...\n", flush=True)
 
     #--------------------------------------------------------------------##
     #        read wordlist
@@ -256,7 +212,7 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     wordlist_path, corpusName = get_wordlist_path_corpus_stem(language, corpus,
                                 datafolder, filename, maxwordtokens, use_corpus)
 
-    print("wordlist file path:\n{}\n".format(wordlist_path))
+    print("wordlist file path:\n{}\n".format(wordlist_path), flush=True)
 
     if not wordlist_path.exists():
         if use_corpus:
@@ -264,9 +220,9 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
                 warning = " ({} tokens)".format(maxwordtokens)
             else:
                 warning = ""
-            print("\nWordlist for {}{} not found.\n"
-                  "ngrams.py is now run.\n".format(corpus, warning))
-            ngrams.main(language=language, corpus=corpus,
+            print("\nWordlist for {}{} not found.\nThe ngram component "
+                "is now run.\n".format(corpus, warning), flush=True)
+            ngram.main(language=language, corpus=corpus,
                         datafolder=datafolder, filename=filename,
                         maxwordtokens=maxwordtokens)
         else:
@@ -355,34 +311,4 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
                                  outfile_SF_name_json, outfile_PF_name_json,
                                  outfile_trieLtoR_name_json,
                                  outfile_trieRtoL_name_json)
-
-
-if __name__ == "__main__":
-
-    args = makeArgParser().parse_args()
-
-    MinimumStemLength = args.minstem
-    MinimumAffixLength = args.minaffix
-    SF_threshold = args.minsize
-    maxwordtokens = args.maxwordtokens
-
-    description="You are running {}.\n".format(__file__) + \
-                "This program computes tries.\n" + \
-                "MinimumStemLength = {}\n".format(MinimumStemLength) + \
-                "MinimumAffixLength = {}\n".format(MinimumAffixLength) + \
-                "SF_threshold = {}\n".format(SF_threshold) + \
-                "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
-
-    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                      args.corpus, args.datafolder, args.config,
-                                      description=description,
-                                      scriptname=__file__)
-
-    use_corpus = determine_use_corpus()
-
-    main(language=language, corpus=corpus, datafolder=datafolder,
-         MinimumStemLength=MinimumStemLength,
-         MinimumAffixLength=MinimumAffixLength,
-         SF_threshold=SF_threshold,
-         maxwordtokens=maxwordtokens, use_corpus=use_corpus)
 

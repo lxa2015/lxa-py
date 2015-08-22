@@ -13,12 +13,13 @@ from collections import (OrderedDict, defaultdict, Counter)
 from itertools import combinations
 from pathlib import Path
 
+import json
 import numpy as np
 import scipy.spatial
 import scipy.sparse
 import networkx as nx
 
-from lxa5lib import sorted_alphabetized
+from .lxa5lib import sorted_alphabetized, SEP_NGRAM
 
 def Normalize(NumberOfWordsForAnalysis, CountOfSharedContexts):
     arr = np.ones((NumberOfWordsForAnalysis), dtype=np.int64)
@@ -38,25 +39,10 @@ def hasGooglePOSTag(line, corpus):
     else:
         return False
 
-def GetMyWords(infileWordsname, corpus, minWordFreq=1):
-    mywords = dict()
-
-    with infileWordsname.open() as wordfile:
-        for line in wordfile:
-            line = line.replace('\n', '').replace('\r', '')
-            if (not line) or line.startswith('#') or hasGooglePOSTag(line, corpus):
-                continue
-            *subpieces, lastpiece = line.split()
-            if not subpieces:
-                continue
-
-            wordFreq = int(lastpiece)
-            if wordFreq < minWordFreq:
-                break
-
-            mywords[' '.join(subpieces)] = wordFreq
-
-    return OrderedDict(sorted(mywords.items(), key=lambda x:x[1], reverse=True))
+def GetMyWords(infileWordsname):
+    word_to_freq = json.load(infileWordsname.open())
+    return [word for word, freq in
+            sorted(word_to_freq.items(), key=lambda x: x[1], reverse=True)]
 
 
 def GetMyGraph(WordToNeighbors_by_str, useWeights=None):
@@ -70,6 +56,19 @@ def GetMyGraph(WordToNeighbors_by_str, useWeights=None):
 
 def GetContextArray(nwords, worddict,
                     infileBigramsname, infileTrigramsname, mincontexts):
+
+    # read bigrams and trigrams from their respective JSON data files
+    bigram_to_freq = json.load(infileBigramsname.open())
+    trigram_to_freq = json.load(infileTrigramsname.open())
+
+    # convert the bigram and trigram dicts into list and sort them
+    # throw away bi/trigrams whose frequency is below mincontexts
+    bigram_to_freq_sorted = [(bigram, freq) for bigram, freq in 
+        sorted_alphabetized(bigram_to_freq.items(), key=lambda x : x[1],
+        reverse=True) if freq >= mincontexts]
+    trigram_to_freq_sorted = [(trigram, freq) for trigram, freq in 
+        sorted_alphabetized(trigram_to_freq.items(), key=lambda x : x[1],
+        reverse=True) if freq >= mincontexts]
 
     # this is necessary so we can reference variables from inner functions
     class Namespace:
@@ -118,56 +117,35 @@ def GetContextArray(nwords, worddict,
         vals.append(1) # if we use 1, we assume "type" counts.
                        # What if we use occurrence_count (--> "token" counts)?
 
-        WordToContexts[word_no][context_no] += occurrence_count
-        ContextToWords[context_no][word_no] += occurrence_count
+        WordToContexts[word][context] += occurrence_count
+        ContextToWords[context][word] += occurrence_count
 
-    with infileTrigramsname.open() as trigramfile:
-        for line in trigramfile:
-            line = line.strip()
-            if (not line) or line.startswith('#'):
-                continue
-            line_components = line.split()
+    sep = SEP_NGRAM
 
-            word1 = line_components[0]
-            word2 = line_components[1]
-            word3 = line_components[2]
-            occurrence_count = int(line_components[3])
+    for trigram, freq in trigram_to_freq_sorted:
+        word1, word2, word3 = trigram.split()
 
-            if occurrence_count < mincontexts:
-                continue
+        context1 = '_' + sep + word2 + sep + word3
+        context2 = word1 + sep + '_' + sep + word3
+        context3 = word1 + sep + word2 + sep '_'
 
-            context1 = tuple(['_', word2, word3])
-            context2 = tuple([word1, '_', word3])
-            context3 = tuple([word1, word2, '_'])
+        if worddict.get(word1) is not None:
+            addword(word1, context1, freq)
+        if worddict.get(word2) is not None:
+            addword(word2, context2, freq)
+        if worddict.get(word3) is not None:
+            addword(word3, context3, freq)
 
-            if worddict.get(word1) is not None:
-                addword(word1, context1, occurrence_count)
-            if worddict.get(word2) is not None:
-                addword(word2, context2, occurrence_count)
-            if worddict.get(word3) is not None:
-                addword(word3, context3, occurrence_count)
+    for bigram, freq in bigram_to_freq_sorted:
+        word1, word2 = bigram.split()
 
-    with infileBigramsname.open() as bigramfile:
-        for line in bigramfile:
-            line = line.strip()
-            if (not line) or line.startswith('#'):
-                continue
-            line_components = line.split()
+        context1 = '_' + sep + word2
+        context2 = word1 + sep + '_'
 
-            word1 = line_components[0]
-            word2 = line_components[1]
-            occurrence_count = int(line_components[2])
-
-            if occurrence_count < mincontexts:
-                continue
-
-            context1 = tuple(['_', word2])
-            context2 = tuple([word1, '_'])
-
-            if worddict.get(word1) is not None:
-                addword(word1, context1, occurrence_count)
-            if worddict.get(word2) is not None:
-                addword(word2, context2, occurrence_count)
+        if worddict.get(word1) is not None:
+            addword(word1, context1, freq)
+        if worddict.get(word2) is not None:
+            addword(word2, context2, freq)
 
     # csr_matrix in scipy means compressed matrix
     return ( scipy.sparse.csr_matrix((vals,(rows,cols)),
@@ -230,8 +208,7 @@ def GetEigenvectors(laplacian):
 
 
 def compute_WordToSharedContextsOfNeighbors(nWordsForAnalysis, WordToContexts,
-                                        WordToNeighbors, ContextToWords,
-                                        nNeighbors, mincontexts):
+        WordToNeighbors, ContextToWords, nNeighbors, mincontexts):
 
     WordToSharedContextsOfNeighbors = dict()
 

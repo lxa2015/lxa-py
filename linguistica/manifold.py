@@ -19,73 +19,26 @@ import json
 import networkx as nx
 from networkx.readwrite import json_graph
 
-from manifold_module import (GetMyWords, GetContextArray,
+from .manifold_module import (GetMyWords, GetContextArray,
                              Normalize, compute_incidence_graph,
                              compute_laplacian, GetEigenvectors,
                              compute_words_distance, compute_closest_neighbors,
                              compute_WordToSharedContextsOfNeighbors,
                              output_WordToSharedContextsOfNeighbors,
                              GetMyGraph, output_ImportantContextToWords)
-import ngrams
-import lxa5
+from . import ngram
+from . import signature
 
-from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix, stdout_list, json_pload,
-                     load_config_for_command_line_help,
-                     SEP_SIG, SEP_SIGTRANSFORM)
-
-
-def makeArgParser(configfilename="config.json"):
-
-    language, \
-    corpus, \
-    datafolder, \
-    configtext = load_config_for_command_line_help(configfilename)
-
-    parser = argparse.ArgumentParser(
-        description="This program computes word neighbors.\n\n{}"
-                    .format(configtext),
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument("--config", help="configuration filename",
-                        type=str, default=configfilename)
-
-    parser.add_argument("--language", help="Language name",
-                        type=str, default=None)
-    parser.add_argument("--corpus", help="Corpus file to use",
-                        type=str, default=None)
-    parser.add_argument("--datafolder", help="path of the data folder",
-                        type=str, default=None)
-
-    parser.add_argument("--maxwordtypes", help="Number of word types to handle",
-                        type=int, default=1000)
-    parser.add_argument("--nNeighbors", help="Number of neighbors",
-                        type=int, default=9)
-    parser.add_argument("--nEigenvectors", help="Number of eigenvectors",
-                        type=int, default=11)
-
-    parser.add_argument("--mincontexts", help="Minimum number of times that "
-                        "a word occurs in a context; "
-                        "also minimum number of neighbors for a word that share "
-                        "a context (for WordToSharedContextsOfNeighbors)",
-                        type=int, default=3)
-    parser.add_argument("--wordtocontexts", help="create the WordToContexts dict?",
-                        type=bool, default=False)
-    parser.add_argument("--contexttowords", help="create the ContextToWords dict?",
-                        type=bool, default=False)
-    parser.add_argument("--usesigtransforms", help="use signature transforms?",
-                        type=bool, default=True)
-
-    return parser
+from .lxa5lib import (json_pdump, changeFilenameSuffix, stdout_list, json_pload,
+                      SEP_SIG, SEP_SIGTRANSFORM)
 
 
 def main(language=None, corpus=None, datafolder=None, filename=None,
          maxwordtypes=1000, nNeighbors=9, nEigenvectors=11, 
-         create_WordToContexts=False, create_ContextToWords=False,
-         mincontexts=3, usesigtransforms=True):
+         mincontexts=3):
 
     print("\n*****************************************************\n"
-          "Running the manifold.py program now...\n")
+          "Running the manifold component of Linguistica now...\n")
 
     if filename:
         corpusStem = Path(filename).stem
@@ -104,38 +57,40 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     if not outcontextsfolder.exists():
         outcontextsfolder.mkdir(parents=True)
 
-    infileWordsname = Path(infolder, corpusStem + '_words.txt')
-    infileBigramsname = Path(infolder, corpusStem + '_bigrams.txt')
-    infileTrigramsname = Path(infolder, corpusStem + '_trigrams.txt')
+    # input filenames
+    infileWordsname = Path(infolder, corpusStem + '_words.json')
+    infileBigramsname = Path(infolder, corpusStem + '_bigrams.json')
+    infileTrigramsname = Path(infolder, corpusStem + '_trigrams.json')
 
+    # if the expected input files are absent, run ngram.py to generate them
     if (not infileWordsname.exists()) or \
        (not infileBigramsname.exists()) or \
        (not infileTrigramsname.exists()):
-        print("Error in locating n-gram data files.\n"
+        print("Error in locating ngram data files.\n"
               "The program now creates them.\n")
-        ngrams.main(language=language, corpus=corpus,
+        ngram.main(language=language, corpus=corpus,
                         datafolder=datafolder, filename=filename)
 
-    if usesigtransforms:
-        if filename:
-            infolderlxa = Path(Path(filename).parent, 'lxa')
-        else:
-            infolderlxa = Path(datafolder, language, 'lxa')
-        sigtransform_json_fname = Path(infolderlxa,
-                                        corpusStem + "_WordToSigtransforms.json")
-        try:
-            WordToSigtransforms = json_pload(sigtransform_json_fname.open())
-        except FileNotFoundError:
-            print("The file \"{}\" is not found.\n"
-                  "The program now creates it.\n".format(sigtransform_json_fname))
-            lxa5.main(language=language, corpus=corpus, datafolder=datafolder,
-                      filename=filename)
-            WordToSigtransforms = json_pload(sigtransform_json_fname.open())
+    # get signature transforms
+    if filename:
+        infolderlxa = Path(Path(filename).parent, 'lxa')
+    else:
+        infolderlxa = Path(datafolder, language, 'lxa')
+    sigtransform_json_fname = Path(infolderlxa,
+                                    corpusStem + "_WordToSigtransforms.json")
+    try:
+        WordToSigtransforms = json_pload(sigtransform_json_fname.open())
+    except FileNotFoundError:
+        print("The file \"{}\" is not found.\n"
+              "The program now creates it.\n".format(sigtransform_json_fname))
+        signature.main(language=language, corpus=corpus, datafolder=datafolder,
+                  filename=filename)
+        WordToSigtransforms = json_pload(sigtransform_json_fname.open())
 
     # WordToSigtransforms just read into the program; to be used soon...
 
     print('Reading word list...', flush=True)
-    mywords = GetMyWords(infileWordsname, corpus)
+    mywords = GetMyWords(infileWordsname)
 
     print("Word file is", infileWordsname, flush=True)
     print("Number of neighbors to find for each word type: ", nNeighbors)
@@ -148,26 +103,26 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
         nWordsForAnalysis = lenMywords
     print('number of words for analysis adjusted to', nWordsForAnalysis)
 
-    analyzedwordlist = list(mywords.keys())[ : nWordsForAnalysis] 
+    analyzedwordlist = mywords[ : nWordsForAnalysis] 
     worddict = {w: analyzedwordlist.index(w) for w in analyzedwordlist}
 
     corpusName = corpusStem + '_' + str(nWordsForAnalysis) + '_' + str(nNeighbors)
 
+    # output filenames
     outfilenameNeighbors = Path(outfolder, corpusName + "_neighbors.txt")
-
     outfilenameSharedcontexts = Path(outfolder, corpusName + \
                                 "_shared_contexts.txt")
-
     outfilenameNeighborGraph = Path(outfolder, corpusName + "_neighbors.gexf")
-
     outfilenameImportantContextToWords = Path(outfolder, corpusName + \
                                               "_ImportantContextToWords.txt")
-
     outWordToContexts_json = Path(outcontextsfolder, corpusName + \
                                        "_WordToContexts.json")
-
     outContextToWords_json = Path(outcontextsfolder, corpusName + \
                                        "_ContextToWords.json")
+    outworddict_json = Path(outcontextsfolder, corpusName + "_worddict.json")
+    outcontextdict_json = Path(outcontextsfolder, corpusName + "_contextdict.json")
+
+    # now ready to do the actual work...
 
     print("Reading bigrams/trigrams and computing context array...", flush=True)
 
@@ -260,58 +215,26 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     outputfilelist = [outfilenameNeighbors, outfilenameNeighborGraph,
                       WordToNeighbors_json, outfilenameSharedcontexts,
                       outfilenameImportantContextToWords,
-                      outfilenameManifoldJson]
+                      outfilenameManifoldJson, outworddict_json,
+                      outcontextdict_json]
 
-    if create_WordToContexts:
-        outputfilelist.append(outWordToContexts_json)
-        json_pdump(WordToContexts, outWordToContexts_json.open("w"),
-                   key=lambda x : len(x[1]), reverse=True)
+    # output WordToContexts, ContextTOWords (these two are in the index form)
+    #    also contextdict and worddict (from index to string)
+    outputfilelist.append(outWordToContexts_json)
+    json_pdump(WordToContexts, outWordToContexts_json.open("w"),
+               key=lambda x : len(x[1]), reverse=True)
 
-    if create_ContextToWords:
-        outputfilelist.append(outContextToWords_json)
-        json_pdump(ContextToWords, outContextToWords_json.open("w"),
-                   key=lambda x : len(x[1]), reverse=True)
+    outputfilelist.append(outContextToWords_json)
+    json_pdump(ContextToWords, outContextToWords_json.open("w"),
+               key=lambda x : len(x[1]), reverse=True)
 
+    json_pdump({word_index: word for word, word_index in worddict.items()},
+        outworddict_json.open("w"))
+
+    json_pdump({context_index: context for context, context_index in contextdict.items()},
+        outcontextdict_json.open("w"))
+
+    # print to stdout the list of output files
     stdout_list("Output files:", *outputfilelist)
 
-
-if __name__ == "__main__":
-
-    args = makeArgParser().parse_args()
-    
-    maxwordtypes = args.maxwordtypes
-    nNeighbors = args.nNeighbors
-    nEigenvectors = args.nEigenvectors
-    create_WordToContexts = args.wordtocontexts
-    create_ContextToWords = args.contexttowords
-    mincontexts = args.mincontexts
-    usesigtransforms = args.usesigtransforms
-
-    description="You are running {}.\n".format(__file__) + \
-                "This program computes word neighbors.\n" + \
-                "maxwordtypes = {}\n".format(maxwordtypes) + \
-                "nNeighbors = {}\n".format(nNeighbors) + \
-                "nEigenvectors = {}\n".format(nEigenvectors) + \
-                "create_WordToContexts = {}\n".format(create_WordToContexts) + \
-                "create_ContextToWords = {}\n".format(create_ContextToWords) + \
-                "mincontexts = {}\n".format(mincontexts) + \
-                "usesigtransforms = {}".format(usesigtransforms)
-
-    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                      args.corpus, args.datafolder, args.config,
-                                      description=description,
-                                      scriptname=__file__)
-
-    if mincontexts > nNeighbors:
-        print("\nBecause mincontexts > nNeighbors (which is disallowed),\n"
-              "mincontexts is now set to equal nNeighbors.\n")
-        mincontexts = nNeighbors
-
-    main(language=language, corpus=corpus, datafolder=datafolder,
-         maxwordtypes=maxwordtypes, nNeighbors=nNeighbors,
-         nEigenvectors=nEigenvectors,
-         create_WordToContexts=create_WordToContexts,
-         create_ContextToWords=create_ContextToWords,
-         mincontexts=mincontexts,
-         usesigtransforms=usesigtransforms)
 

@@ -1,12 +1,11 @@
 #!usr/bin/env python3
 
+import json
 from collections import Counter
-import argparse
 from pathlib import Path
 
-from lxa5lib import (get_language_corpus_datafolder, stdout_list,
-                     load_config_for_command_line_help, sorted_alphabetized,
-                     changeFilenameSuffix, json_pdump)
+from .lxa5lib import (stdout_list, sorted_alphabetized, SEP_NGRAM
+                     changeFilenameSuffix)
 
 #------------------------------------------------------------------------------#
 #
@@ -19,40 +18,22 @@ from lxa5lib import (get_language_corpus_datafolder, stdout_list,
 #
 #------------------------------------------------------------------------------#
 
-def makeArgParser(configfilename="config.json"):
 
-    language, \
-    corpus, \
-    datafolder, \
-    configtext = load_config_for_command_line_help(configfilename)
-
-    parser = argparse.ArgumentParser(
-        description="This program extracts ngrams from a corpus.\n\n{}"
-                    .format(configtext),
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument("--config", help="configuration filename",
-                        type=str, default=configfilename)
-
-    parser.add_argument("--language", help="Language name",
-                        type=str, default=None)
-    parser.add_argument("--corpus", help="Corpus file to use",
-                        type=str, default=None)
-    parser.add_argument("--datafolder", help="path of the data folder",
-                        type=str, default=None)
-
-    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
-                        " if this is zero, then the program reads "
-                        "all word tokens in the corpus",
-                        type=int, default=0)
-    return parser
+def output_ngram(ngram_to_count_sorted, outfilename, intro_string,
+        sep, print_stdout):
+    print(print_stdout, flush=True)
+    with outfilename.open('w') as f:
+        print(intro_string, file=f)
+        print("# type count: {}".format(len(ngram_to_count_sorted)), file=f)
+        for (ngram, freq) in ngram_to_count_sorted:
+            print(ngram + sep +  str(freq), file=f)
 
 
 def main(language=None, corpus=None, datafolder=None, filename=None,
          maxwordtokens=0):
 
     print("\n*****************************************************\n"
-          "Running the ngrams.py program now...\n")
+          "Running the ngram component of Linguistica now...\n", flush=True)
 
     if filename:
         infilename = Path(filename)
@@ -83,19 +64,21 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     wordDict = Counter()
     trigramDict = Counter()
     bigramDict = Counter()
-    sep = "\t"
+    sep = SEP_NGRAMS
     corpusCurrentSize = 0 # running word token count
 
-    print('Reading the corpus file now...')
+    print('Reading the corpus file now...', flush=True)
 
     with infilename.open() as f:
         for line in f.readlines():
+            if maxwordtokens and corpusCurrentSize > maxwordtokens:
+                break
+
             if not line:
                 continue
 
-            line = line.strip().casefold()
-
-            # TODO: modify/combine these with "scrubbing", cf. Alchemist and Lxa4
+            # TODO: modify/combine these with "scrubbing"
+            #   cf. Alchemist and Lxa4
             line = line.replace(".", " . ")
             line = line.replace(",", " , ")
             line = line.replace(";", " ; ")
@@ -105,11 +88,26 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
             line = line.replace(")", " ) ")
             line = line.replace("(", " ( ")
 
+            line = line.strip().casefold()
+
+            if not line:
+                continue
+
             words = line.split()
             lenWords = len(words)
 
             corpusCurrentSize += lenWords
 
+            if lenWords == 1:
+                wordDict[words[0]] += 1
+                continue
+            elif lenWords == 2:
+                wordDict[words[0]] += 1
+                wordDict[words[1]] += 1
+                bigramDict[words[0] + sep + words[1]] += 1
+                continue
+
+            # when lenWords >= 3...
             for i in range(lenWords-2):
 
                 word1 = words[i]
@@ -130,17 +128,13 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
                 trigramDict[trigram] += 1
                 bigramDict[bigram] += 1
 
-            if maxwordtokens and corpusCurrentSize > maxwordtokens:
-                break
+    print("\nCompleted counting words, bigrams, and trigrams.", flush=True)
+    print("Token count: {}".format(corpusCurrentSize), flush=True)
 
-    print("\nCompleted counting words, bigrams, and trigrams.")
-    print("Token count: {}".format(corpusCurrentSize))
+    intro_string = "# data source: {}\n" + \
+                "# token count: {}".format(str(infilename), corpusCurrentSize)
 
-    intro_string = "# data source: {}\n# token count: {}".format(str(infilename),
-                                                                   corpusCurrentSize)
-
-#    wordsSorted = sorted(wordDict.items(),
-#                                      key=lambda x: x[1], reverse=True)
+    print("Sorting the ngrams...", flush=True)
     wordsSorted = sorted_alphabetized(wordDict.items(),
                                       key=lambda x: x[1], reverse=True)
 
@@ -151,64 +145,35 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
                                          key=lambda x: x[1], reverse=True)
 
     # print txt outputs
-    with outfilenameWords.open('w') as f:
-        print(intro_string, file=f)
-        print("# type count: {}".format(len(wordsSorted)), file=f)
-        for (word, freq) in wordsSorted:
-            print(word + sep + str(freq), file=f)
+    output_ngram(wordsSorted, outfilenameWords, intro_string, sep,
+        "Outputting unigrams...")
 
-    with outfilenameBigrams.open('w') as f:
-        print(intro_string, file=f)
-        print("# type count: {}".format(len(bigramsSorted)), file=f)
-        for (bigram, freq) in bigramsSorted:
-            print(bigram + sep +  str(freq), file=f)
+    output_ngram(bigramsSorted, outfilenameBigrams, intro_string, sep,
+        "Outputting bigrams...")
 
-    with outfilenameTrigrams.open('w') as f:
-        print(intro_string, file=f)
-        print("# type count: {}".format(len(trigramsSorted)), file=f)
-        for (trigram, freq) in trigramsSorted:
-            print(trigram + sep + str(freq), file=f)
+    output_ngram(trigramsSorted, outfilenameTrigrams, intro_string, sep,
+        "Outputting trigrams...")
 
     # print dx1 output
+    print("Outputting the dx1 file...", flush=True)
     with outfilenameDx1.open('w') as f:
         for (word, freq) in wordsSorted:
             print(word, freq, ' '.join(word), file=f)
 
     # print json outputs
+    print("Outputting the JSON files...", flush=True)
     with changeFilenameSuffix(outfilenameWords, ".json").open('w') as f:
-        json_pdump(dict(wordsSorted), f)
+        json.dump(wordDict, f)
 
     with changeFilenameSuffix(outfilenameBigrams, ".json").open('w') as f:
-        json_pdump(dict(bigramsSorted), f)
+        json.dump(bigramDict, f)
 
     with changeFilenameSuffix(outfilenameTrigrams, ".json").open('w') as f:
-        json_pdump(dict(trigramsSorted), f)
-
-    print('wordlist, bigram and trigram files ready')
-    print('dx1 file ready')
+        json.dump(trigramDict, f)
 
     stdout_list("Output files:", outfilenameWords,
                 outfilenameBigrams, outfilenameTrigrams, outfilenameDx1,
                 changeFilenameSuffix(outfilenameWords, ".json"),
                 changeFilenameSuffix(outfilenameBigrams, ".json"),
                 changeFilenameSuffix(outfilenameTrigrams, ".json"))
-
-
-if __name__ == "__main__":
-
-    args = makeArgParser().parse_args()
-
-    maxwordtokens = args.maxwordtokens
-
-    description="You are running {}.\n".format(__file__) + \
-                "This program extracts word n-grams.\n" + \
-                "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
-
-    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                      args.corpus, args.datafolder, args.config,
-                                      description=description,
-                                      scriptname=__file__)
-
-    main(language=language, corpus=corpus, datafolder=datafolder,
-         maxwordtokens=maxwordtokens)
 

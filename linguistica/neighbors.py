@@ -14,9 +14,9 @@ import time
 
 import networkx as nx
 
-from lxa5lib import (get_language_corpus_datafolder,
+from .lxa5lib import (get_language_corpus_datafolder,
                      load_config_for_command_line_help)
-import manifold
+from . import manifold
 
 # colors for generations of nodes in output graph
 # RGB_list[0] is the color for the seed word node

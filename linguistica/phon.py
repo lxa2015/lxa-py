@@ -4,12 +4,9 @@ from collections import Counter
 import argparse
 from pathlib import Path
 
-import ngrams
-from lxa5lib import (get_language_corpus_datafolder, json_pdump,
-                     changeFilenameSuffix, stdout_list,
-                     load_config_for_command_line_help,
-                     determine_use_corpus, get_wordlist_path_corpus_stem,
-                     sorted_alphabetized)
+from . import ngram
+from .lxa5lib import (json_pdump, changeFilenameSuffix, stdout_list,
+                     get_wordlist_path_corpus_stem, sorted_alphabetized)
 
 #------------------------------------------------------------------------------#
 #
@@ -21,41 +18,12 @@ from lxa5lib import (get_language_corpus_datafolder, json_pdump,
 #
 #------------------------------------------------------------------------------#
 
-def makeArgParser(configfilename="config.json"):
-
-    language, \
-    corpus, \
-    datafolder, \
-    configtext = load_config_for_command_line_help(configfilename)
-
-    parser = argparse.ArgumentParser(
-        description="Extracting phone/letter ngrams from a wordlist; also other"
-                    "phonology-related stuff\n\n{}"
-                    .format(configtext),
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument("--config", help="configuration filename",
-                        type=str, default=configfilename)
-
-    parser.add_argument("--language", help="Language name",
-                        type=str, default=None)
-    parser.add_argument("--corpus", help="Corpus file to use",
-                        type=str, default=None)
-    parser.add_argument("--datafolder", help="path of the data folder",
-                        type=str, default=None)
-
-    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
-                        " if this is zero, then the program counts "
-                        "all word tokens in the corpus",
-                        type=int, default=0)
-    return parser
-
 
 def main(language=None, corpus=None, datafolder=None, filename=None,
          maxwordtokens=0, use_corpus=True):
 
     print("\n*****************************************************\n"
-          "Running the phon.py program now...\n")
+          "Running the phon component of Linguistica now...\n", flush=True)
 
     infilename, corpusName = get_wordlist_path_corpus_stem(language, corpus,
                                 datafolder, filename, maxwordtokens, use_corpus)
@@ -66,9 +34,9 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
                 warning = " ({} tokens)".format(maxwordtokens)
             else:
                 warning = ""
-            print("\nWordlist for {}{} not found.\n"
-                  "ngrams.py is now run.\n".format(corpus, warning))
-            ngrams.main(language=language, corpus=corpus,
+            print("\nWordlist for {}{} not found.\nThe ngram component "
+                  "is now run.\n".format(corpus, warning), flush=True)
+            ngram.main(language=language, corpus=corpus,
                         datafolder=datafolder, filename=filename,
                         maxwordtokens=maxwordtokens)
         else:
@@ -92,7 +60,7 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     biphoneDict = Counter()
     sep = "\t"
 
-    print('Reading the wordlist file now...')
+    print('Reading the wordlist file now...', flush=True)
 
     with infilename.open() as f:
         lines = f.readlines()
@@ -133,7 +101,7 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
                 triphoneDict[triphone] += freq
                 biphoneDict[biphone] += freq
 
-    print("\nCompleted counting phones, biphones, and triphones.")
+    print("\nCompleted counting phones, biphones, and triphones.", flush=True)
 
     intro_string = "# data source: {}".format(str(infilename))
 
@@ -189,29 +157,10 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     with outfilenameTriphones_json.open('w') as f:
         json_pdump(triphoneDict, f, key=lambda x:x[1], reverse=True)
 
-    print('phone, biphone and triphone files ready')
+    print('phone, biphone and triphone files ready', flush=True)
 
     stdout_list("Output files:",
         outfilenamePhones, outfilenameBiphones, outfilenameTriphones,
         outfilenamePhones_json, outfilenameBiphones_json, outfilenameTriphones_json)
-
-if __name__ == "__main__":
-
-    args = makeArgParser().parse_args()
-    maxwordtokens = args.maxwordtokens
-
-    description="You are running {}.\n".format(__file__) + \
-                "This program works on the phonology-related tasks.\n" + \
-                "maxwordtokens = {} (zero means all word tokens)".format(maxwordtokens)
-
-    language, corpus, datafolder = get_language_corpus_datafolder(args.language,
-                                      args.corpus, args.datafolder, args.config,
-                                      description=description,
-                                      scriptname=__file__)
-
-    use_corpus = determine_use_corpus()
-
-    main(language=language, corpus=corpus, datafolder=datafolder,
-         maxwordtokens=maxwordtokens, use_corpus=use_corpus)
 
 

@@ -16,6 +16,10 @@ from itertools import (zip_longest, groupby)
 SEP_SIG = "-"          # separator between affixes in a sig (NULL-s-ed-ing)
 SEP_SIGTRANSFORM = "." # separator between sig and affix (NULL-s-ed-ing.ed)
 
+SEP_NGRAM = "\t" # separator between words in an ngram
+    # (e.g., the context "the\tunited\tstates" means "the united states".
+    #                    "the\t_\tof" means "the _ of" )
+
 #------------------------------------------------------------------------------#
 #    general functions used by various lxa5 components
 #------------------------------------------------------------------------------#
