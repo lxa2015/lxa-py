@@ -35,36 +35,36 @@ def makeArgParser(config):
     parser.add_argument("--datafolder", help="path of the data folder",
         type=str, default=config["datafolder"])
 
-    parser.add_argument("--maxwordtokens", help="maximum number of word tokens;"
+    parser.add_argument("--max_word_tokens", help="maximum number of word tokens;"
         " if zero, then the program reads all word tokens in the corpus",
         type=int, default=config["max_word_tokens"])
 
-    parser.add_argument("--minstem", help="Minimum stem length; "
+    parser.add_argument("--min_stem_length", help="Minimum stem length; "
         "usually from 2 to 5, where a smaller number means you can find "
         "shorter stems although the program may run a lot slower",
         type=int, default=config["min_stem_length"])
-    parser.add_argument("--maxaffix", help="Maximum affix length; "
+    parser.add_argument("--max_affix_length", help="Maximum affix length; "
         "usually from 1 to 5 -- a larger number means possibly longer affixes",
         type=int, default=config["max_affix_length"])
-    parser.add_argument("--minsiguse", help="Minimum number of signature use; "
+    parser.add_argument("--min_sig_use", help="Minimum number of signature use; "
         "a small number like 5 is pretty much the smallest to use in order to "
         "filter spurious signatures; may try larger numbers like 10 or 20",
         type=int, default=config["min_sig_use"])
 
-    parser.add_argument("--minaffix", help="Minimum affix length",
+    parser.add_argument("--min_affix_length", help="Minimum affix length",
         type=int, default=config["min_affix_length"])
-    parser.add_argument("--minsfpfcount", help="Minimum size of "
+    parser.add_argument("--min_sf_pf_count", help="Minimum size of "
         "successors/predecessors for output",
         type=int, default=config["min_sf_pf_count"])
 
-    parser.add_argument("--maxwordtypes", help="Number of word types to handle",
+    parser.add_argument("--max_word_types", help="Number of word types to handle",
         type=int, default=config["max_word_types"])
-    parser.add_argument("--neighbors", help="Number of neighbors",
+    parser.add_argument("--n_neighbors", help="Number of neighbors",
         type=int, default=config["n_neighbors"])
-    parser.add_argument("--eigenvectors", help="Number of eigenvectors",
+    parser.add_argument("--n_eigenvectors", help="Number of eigenvectors",
         type=int, default=config["n_eigenvectors"])
 
-    parser.add_argument("--mincontextuse", help="Minimum number of times that "
+    parser.add_argument("--min_context_use", help="Minimum number of times that "
         "a word occurs in a context; also minimum number of neighbors for a "
         "word that share a context (for WordToSharedContextsOfNeighbors)",
         type=int, default=config["min_context_use"])
@@ -117,16 +117,16 @@ if __name__ == "__main__":
     corpus = args.corpus
     datafolder = args.datafolder
 
-    max_word_tokens = args.maxwordtokens
-    min_stem_length = args.minstem
-    max_affix_length = args.maxaffix
-    min_sig_use = args.minsiguse
-    min_affix_length = args.minaffix
-    min_sf_pf_count = args.minsfpfcount
-    n_neighbors = args.neighbors
-    n_eigenvectors = args.eigenvectors
-    min_context_use = args.mincontextuse
-    max_word_types = args.maxwordtypes
+    max_word_tokens = args.max_word_tokens
+    min_stem_length = args.min_stem_length
+    max_affix_length = args.max_affix_length
+    min_sig_use = args.min_sig_use
+    min_affix_length = args.min_affix_length
+    min_sf_pf_count = args.min_sf_pf_count
+    n_neighbors = args.n_neighbors
+    n_eigenvectors = args.n_eigenvectors
+    min_context_use = args.min_context_use
+    max_word_types = args.max_word_types
     print("done\n", flush=True)
 
     # make sure that "program" is one of the valid programs
@@ -147,18 +147,21 @@ if __name__ == "__main__":
     write_new_config = False
     if not language or not corpus or not datafolder:
         write_new_config = True
-        print("At least one of the {language, corpus, datafolder} values is\n"
-            "empty. You are now prompted to provide what is missing.\n", 
+        print("At least one of the {{language, corpus, datafolder}} values is\n"
+            "empty. The program will be looking for the file\n"
+            "\"<datafolder>{}<language>{}<corpus>\" relative to your current\n"
+            "directory. You are now prompted to provide what "
+            "is missing.\n".format(os.sep, os.sep), 
             flush=True)
+        while not datafolder:
+            datafolder = input("Datafolder (relative to current directory): ")
+            datafolder = datafolder.strip().casefold()
         while not language:
             language = input("Language: ")
             language = language.strip().casefold()
         while not corpus:
             corpus = input("Corpus filename (including file extension name): ")
             corpus = corpus.strip().casefold()
-        while not datafolder:
-            datafolder = input("Datafolder (relative to current directory): ")
-            datafolder = datafolder.strip().casefold()
         print(flush=True)
 
     # make sure the expected input file (based on "language", "corpus", and
