@@ -137,8 +137,11 @@ if __name__ == "__main__":
     if program not in PROGRAMS:
         sys.exit("{} is not one of the programs.\n"
                  "Run \"python3 lxa5.py -h\" for details.".format(program))
-    print("You are running the {} program.\n"
-          "{}\n".format(program, PROGRAM_TO_DESCRIPTION[program]), flush=True)
+    if program == "all":
+        print("You are running all Linguistica components.", flush=True)
+    else:
+        print("You are running the {} program.\n"
+            "{}\n".format(program, PROGRAM_TO_DESCRIPTION[program]), flush=True)
 
     # make sure that none of "language", "corpus", and "datafolder" are empty
     write_new_config = False
@@ -168,8 +171,7 @@ if __name__ == "__main__":
           "{}\n".format(corpus_filename_path), flush=True)
 
     # print the relevant parameters
-    print("The parameters relevant to the {} program "
-          "are as follows:\n\t{}".format(program,
+    print("The relevant program parameters are as follows:\n\t{}".format(
           "\n\t".join([parameter + " = " + str(eval(parameter))
               for parameter in PROGRAM_TO_PARAMETERS[program]])), flush=True)
     if "max_word_tokens" in PROGRAM_TO_PARAMETERS[program]:
@@ -178,6 +180,7 @@ if __name__ == "__main__":
     else:
         print(flush=True)
 
+    # pause and allow user to decide whether to proceed or not
     proceed_or_not()
 
     # run the specified program
@@ -185,37 +188,44 @@ if __name__ == "__main__":
     use_corpus = True # By default, the input data file is a corpus text file,
                       # unless a wordlist is used instead
                       # (for signature, trie, and phon)
-
-    if program == "ngram":
-        ngram.main(language=language, corpus=corpus, datafolder=datafolder,
-             maxwordtokens=max_word_tokens)
-
-    elif program == "signature":
+    if program in {"signature", "trie", "phon"}:
         use_corpus = determine_use_corpus()
-        signature.main(language=language, corpus=corpus, datafolder=datafolder,
-             MinimumStemLength=min_stem_length,
-             MaximumAffixLength=max_affix_length,
-             MinimumNumberofSigUses=min_sig_use,
-             maxwordtokens=max_word_tokens, use_corpus=use_corpus)
 
-    elif program == "trie":
-        use_corpus = determine_use_corpus()
-        trie.main(language=language, corpus=corpus, datafolder=datafolder,
-             MinimumStemLength=min_stem_length,
-             MinimumAffixLength=min_affix_length,
-             SF_threshold=min_sf_pf_count,
-             maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+    # if program is "all", run all Linguistica programs in the specified order
+    # otherwise just run the particular one as specified
+    if program == "all":
+        programs = ["ngram", "signature", "trie", "phon", "manifold"]
+    else:
+        programs = [program]
 
-    elif program == "phon":
-        use_corpus = determine_use_corpus()
-        phon.main(language=language, corpus=corpus, datafolder=datafolder,
-             maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+    for program in programs:
+        if program == "ngram":
+            ngram.main(language=language, corpus=corpus, datafolder=datafolder,
+                 maxwordtokens=max_word_tokens)
 
-    elif program == "manifold":
-        manifold.main(language=language, corpus=corpus, datafolder=datafolder,
-             maxwordtypes=max_word_types, nNeighbors=n_neighbors,
-             nEigenvectors=n_eigenvectors,
-             mincontexts=min_context_use)
+        elif program == "signature":
+            signature.main(language=language, corpus=corpus, datafolder=datafolder,
+                 MinimumStemLength=min_stem_length,
+                 MaximumAffixLength=max_affix_length,
+                 MinimumNumberofSigUses=min_sig_use,
+                 maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+
+        elif program == "trie":
+            trie.main(language=language, corpus=corpus, datafolder=datafolder,
+                 MinimumStemLength=min_stem_length,
+                 MinimumAffixLength=min_affix_length,
+                 SF_threshold=min_sf_pf_count,
+                 maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+
+        elif program == "phon":
+            phon.main(language=language, corpus=corpus, datafolder=datafolder,
+                 maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+
+        elif program == "manifold":
+            manifold.main(language=language, corpus=corpus, datafolder=datafolder,
+                 maxwordtypes=max_word_types, nNeighbors=n_neighbors,
+                 nEigenvectors=n_eigenvectors,
+                 mincontexts=min_context_use)
 
     # check if the corpus text file has been run before, and keep track of it
     if use_corpus:

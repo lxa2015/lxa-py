@@ -48,7 +48,7 @@ CONFIG_FILENAME = "config.json"
 
 # constants for the various programs
 
-PROGRAMS = {"signature", "ngram", "trie", "phon", "manifold"}
+PROGRAMS = {"all", "signature", "ngram", "trie", "phon", "manifold"}
 
 PROGRAM_TO_DESCRIPTION = {
     "ngram": "This program extracts word n-grams.",
@@ -68,6 +68,10 @@ PROGRAM_TO_PARAMETERS = { # useful to know what parameters each program cares ab
              "min_sf_pf_count"],
     "manifold": ["max_word_types", "n_neighbors", "n_eigenvectors",
                  "min_context_use"],
+    "all": ["max_word_tokens", "min_stem_length", "max_affix_length",
+            "min_sig_use", "min_affix_length", "min_sf_pf_count",
+            "n_neighbors", "n_eigenvectors", "min_context_use",
+            "max_word_types"],
 }
 
 #------------------------------------------------------------------------------#
