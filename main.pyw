@@ -55,7 +55,7 @@ except ImportError:
     sys.exit("PyQt5 cannot be imported.\n"
              "Be sure it is properly installed for your Python 3 distribution.")
 
-from PyQt5.QtCore import (Qt, QUrl, QThread)
+from PyQt5.QtCore import (Qt, QUrl, QThread, pyqtSignal, QCoreApplication)
 from PyQt5.QtWidgets import (QDialog, QMainWindow, QApplication, QWidget,
                              QAction, QHBoxLayout, QVBoxLayout, QTreeWidget,
                              QFileDialog, QLabel, QPushButton, QMessageBox,
@@ -84,6 +84,51 @@ __version__ = "5.1.0"
 __author__ = 'Jackson L. Lee'
 
 #------------------------------------------------------------------------------#
+
+class LinguisticaComponentsWorker(QThread):
+    progress_signal = pyqtSignal(str, int)
+    # str is for the progress label text
+    # int is for the progress number for updating the progress bar
+
+    def __init__(self, corpus_filename, config, parent=None):
+        QThread.__init__(self, parent)
+
+        self.corpus_filename = corpus_filename
+        self.config = config
+
+    def run(self):
+        # this "run" method is never explicitly called
+        # it is run by the built-in "start" method of this QThread
+
+        ngram.main(filename=self.corpus_filename,
+            maxwordtokens=self.config["max_word_tokens"])
+        self.progress_signal.emit("Finding morphological signatures...", 1)
+
+        signature.main(filename=self.corpus_filename,
+            maxwordtokens=self.config["max_word_tokens"],
+            MinimumStemLength=self.config["min_stem_length"],
+            MaximumAffixLength=self.config["max_affix_length"],
+            MinimumNumberofSigUses=self.config["min_sig_use"])
+        self.progress_signal.emit("Computing tries...", 2)
+
+        trie.main(filename=self.corpus_filename,
+            maxwordtokens=self.config["max_word_tokens"],
+            MinimumStemLength=self.config["min_stem_length"],
+            MinimumAffixLength=self.config["min_affix_length"],
+            SF_threshold=self.config["min_sf_pf_count"])
+        self.progress_signal.emit("Working on phonology...", 3)
+
+        phon.main(filename=self.corpus_filename,
+            maxwordtokens=self.config["max_word_tokens"])
+        self.progress_signal.emit("Computing word neighbors...", 4)
+
+        manifold.main(filename=self.corpus_filename,
+            maxwordtypes=self.config["max_word_types"],
+            nNeighbors=self.config["n_neighbors"],
+            nEigenvectors=self.config["n_eigenvectors"],
+            mincontexts=self.config["min_context_use"])
+        self.progress_signal.emit("Corpus processed", 5)
+
 
 class MainWindow(QMainWindow):
 
@@ -252,6 +297,17 @@ class MainWindow(QMainWindow):
         self.create_lexicon()
 
 
+    def update_progress(self, progress_text, progress_number):
+        self.progressDialog.setLabelText(progress_text)
+        self.progressDialog.setValue(progress_number)
+
+
+    def teminate_lxa_worker(self):
+        self.lxa_worker.terminate()
+        self.lxa_worker.wait()
+        self.lxa_worker.quit()
+
+
     def run_corpus(self):
         if not self.valid_filename():
             return
@@ -263,54 +319,35 @@ class MainWindow(QMainWindow):
         print("\nCorpus text file in use:\n{}\n".format(self.corpus_filename),
             flush=True)
 
-        # run Linguistica for the selected corpus and show progress
+        # set up the Linguistica components worker
+        # The worker is a QThread. We spawn this thread, and the linguistica
+        # components run on this new thread but not the "main" thread for the GUI.
+        # This makes the GUI still responsive
+        # while the long and heavy running process of
+        # the Linguistica components is ongoing.
+        self.lxa_worker = LinguisticaComponentsWorker(
+                            self.corpus_filename, self.config)
+        self.lxa_worker.progress_signal.connect(self.update_progress)
+        number_of_components = 5
 
-        # set up progress dialog and bar
-        progressDialog = QProgressDialog(
-            "Running Linguistica...", "Cancel", 0, 5, self) # for 5 components
-        progressDialog.resize(300, 100)
-        progressDialog.setWindowModality(Qt.WindowModal)
-        progressDialog.setWindowTitle("Processing {}".format(self.corpus_name))
-        progressDialog.setValue(0)
-        progressDialog.show()
+        # set up progress dialog
+        self.progressDialog = QProgressDialog()
+        self.progressDialog.setRange(0, number_of_components)
+        self.progressDialog.setLabelText("Extracting word ngrams...")
+        self.progressDialog.setValue(0.5)
+            # 0 would make it look like no progress at the beginning...
+        self.progressDialog.setWindowTitle("Processing {}".format(self.corpus_name))
+        self.progressDialog.setCancelButton(None)
+        self.progressDialog.resize(400, 100)
+        self.progressDialog.show()
 
-        ## TODO: set what function the cancel button triggers
+        # make sure all GUI stuff up to this point has been processed before
+        # doing the real work of running the Lxa components
+        QCoreApplication.processEvents() 
 
-        progressDialog.setLabelText("Extracting ngrams...")
-        ngram.main(filename=self.corpus_filename,
-            maxwordtokens=self.max_word_tokens)
-        progressDialog.setValue(1)
+        self.lxa_worker.start()
 
-        progressDialog.setLabelText("Finding morphological signatures...")
-        signature.main(filename=self.corpus_filename,
-            maxwordtokens=self.max_word_tokens,
-            MinimumStemLength=self.min_stem_length,
-            MaximumAffixLength=self.max_affix_length,
-            MinimumNumberofSigUses=self.min_sig_use)
-        progressDialog.setValue(2)
-
-        progressDialog.setLabelText("Computing tries...")
-        trie.main(filename=self.corpus_filename,
-            maxwordtokens=self.max_word_tokens,
-            MinimumStemLength=self.min_stem_length,
-            MinimumAffixLength=self.min_affix_length,
-            SF_threshold=self.min_sf_pf_count)
-        progressDialog.setValue(3)
-
-        progressDialog.setLabelText("Working on phonology...")
-        phon.main(filename=self.corpus_filename,
-            maxwordtokens=self.max_word_tokens)
-        progressDialog.setValue(4)
-
-        progressDialog.setLabelText("Computing word neighbors...")
-        manifold.main(filename=self.corpus_filename,
-            maxwordtypes=self.max_word_types,
-            nNeighbors=self.n_neighbors,
-            nEigenvectors=self.n_eigenvectors,
-            mincontexts=self.min_context_use)
-        progressDialog.setValue(5)
-
-        progressDialog.close()
+        QCoreApplication.processEvents()
 
         # check if corpus has been run before, see if updating config is needed
         new_config = False
