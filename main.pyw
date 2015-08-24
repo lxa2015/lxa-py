@@ -55,13 +55,13 @@ except ImportError:
     sys.exit("PyQt5 cannot be imported.\n"
              "Be sure it is properly installed for your Python 3 distribution.")
 
-from PyQt5.QtCore import (Qt, QUrl)
+from PyQt5.QtCore import (Qt, QUrl, QThread)
 from PyQt5.QtWidgets import (QDialog, QMainWindow, QApplication, QWidget,
                              QAction, QHBoxLayout, QVBoxLayout, QTreeWidget,
                              QFileDialog, QLabel, QPushButton, QMessageBox,
                              QLayout, QTabWidget, QDoubleSpinBox, QLineEdit,
                              QTreeWidgetItem, QTableWidget, QTableWidgetItem,
-                             QSplitter, QProgressDialog, QProgressBar)
+                             QSplitter, QProgressDialog)
 from PyQt5.QtWebKitWidgets import QWebView
 
 # the following modules are from the Linguistica team.
@@ -186,7 +186,6 @@ class MainWindow(QMainWindow):
         self.status.showMessage("No corpus text file loaded. "
                                 "To select one: File --> Read corpus...")
 
-
     def createAction(self, text=None, slot=None, tip=None, shortcut=None,
                      checkable=False):
         """this create actions for the File menu, things like
@@ -266,38 +265,52 @@ class MainWindow(QMainWindow):
 
         # run Linguistica for the selected corpus and show progress
 
-        # TODO: progress bar and dialog...
-#        bar = QProgressBar(self)
+        # set up progress dialog and bar
+        progressDialog = QProgressDialog(
+            "Running Linguistica...", "Cancel", 0, 5, self) # for 5 components
+        progressDialog.resize(300, 100)
+        progressDialog.setWindowModality(Qt.WindowModal)
+        progressDialog.setWindowTitle("Processing {}".format(self.corpus_name))
+        progressDialog.setValue(0)
+        progressDialog.show()
 
-#        progress = QProgressDialog(
-#            "Extracting ngrams", "&Cancel", 0, 0)
-#        progress.setWindowTitle('Processing {}'.format(self.corpus_name))
-#        progress.setBar(bar)
-#        progress.show()
+        ## TODO: set what function the cancel button triggers
 
+        progressDialog.setLabelText("Extracting ngrams...")
         ngram.main(filename=self.corpus_filename,
             maxwordtokens=self.max_word_tokens)
+        progressDialog.setValue(1)
 
+        progressDialog.setLabelText("Finding morphological signatures...")
         signature.main(filename=self.corpus_filename,
             maxwordtokens=self.max_word_tokens,
             MinimumStemLength=self.min_stem_length,
             MaximumAffixLength=self.max_affix_length,
             MinimumNumberofSigUses=self.min_sig_use)
+        progressDialog.setValue(2)
 
+        progressDialog.setLabelText("Computing tries...")
         trie.main(filename=self.corpus_filename,
             maxwordtokens=self.max_word_tokens,
             MinimumStemLength=self.min_stem_length,
             MinimumAffixLength=self.min_affix_length,
             SF_threshold=self.min_sf_pf_count)
+        progressDialog.setValue(3)
 
+        progressDialog.setLabelText("Working on phonology...")
         phon.main(filename=self.corpus_filename,
             maxwordtokens=self.max_word_tokens)
+        progressDialog.setValue(4)
 
+        progressDialog.setLabelText("Computing word neighbors...")
         manifold.main(filename=self.corpus_filename,
             maxwordtypes=self.max_word_types,
             nNeighbors=self.n_neighbors,
             nEigenvectors=self.n_eigenvectors,
             mincontexts=self.min_context_use)
+        progressDialog.setValue(5)
+
+        progressDialog.close()
 
         # check if corpus has been run before, see if updating config is needed
         new_config = False
