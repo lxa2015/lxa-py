@@ -85,7 +85,19 @@ __author__ = 'Jackson L. Lee'
 
 #------------------------------------------------------------------------------#
 
+# if we *have* to run the Linguistica components (e.g., the "ngram", "manifold", 
+# "signature" programs)---because we load the corpus for the very first time or
+# because we want to rerun the corpus for some reason---then we spawn another
+# thread to set up a "Linguistica component worker" using QThread.
+# In this way, this worker (with lots of heavy computational work) works in a
+# separate thread that is not the main thread for the GUI, and therefore the GUI
+# stays responsive and (most probably) nothing freezes.
+
 class LinguisticaComponentsWorker(QThread):
+
+    # progress_signal is a custom PyQt signal. It has to be defined within this
+    # QThread subclass but *outside* __init__ here.
+
     progress_signal = pyqtSignal(str, int)
     # str is for the progress label text
     # int is for the progress number for updating the progress bar
@@ -100,35 +112,43 @@ class LinguisticaComponentsWorker(QThread):
         # this "run" method is never explicitly called
         # it is run by the built-in "start" method of this QThread
 
+        # What happens here:  Each of the Linguistica component
+        # is run for the specified corpus file with the specified parameters.
+        # When a component is done, emit a signal with info to update the
+        # progress dialog label text and progress bar
+
         ngram.main(filename=self.corpus_filename,
             maxwordtokens=self.config["max_word_tokens"])
-        self.progress_signal.emit("Finding morphological signatures...", 1)
+        self.progress_signal.emit("Finding morphological signatures...", 20)
 
         signature.main(filename=self.corpus_filename,
             maxwordtokens=self.config["max_word_tokens"],
             MinimumStemLength=self.config["min_stem_length"],
             MaximumAffixLength=self.config["max_affix_length"],
             MinimumNumberofSigUses=self.config["min_sig_use"])
-        self.progress_signal.emit("Computing tries...", 2)
+        self.progress_signal.emit("Computing tries...", 40)
 
         trie.main(filename=self.corpus_filename,
             maxwordtokens=self.config["max_word_tokens"],
             MinimumStemLength=self.config["min_stem_length"],
             MinimumAffixLength=self.config["min_affix_length"],
             SF_threshold=self.config["min_sf_pf_count"])
-        self.progress_signal.emit("Working on phonology...", 3)
+        self.progress_signal.emit("Working on phonology...", 60)
 
         phon.main(filename=self.corpus_filename,
             maxwordtokens=self.config["max_word_tokens"])
-        self.progress_signal.emit("Computing word neighbors...", 4)
+        self.progress_signal.emit("Computing word neighbors...", 80)
 
         manifold.main(filename=self.corpus_filename,
             maxwordtypes=self.config["max_word_types"],
             nNeighbors=self.config["n_neighbors"],
             nEigenvectors=self.config["n_eigenvectors"],
             mincontexts=self.config["min_context_use"])
-        self.progress_signal.emit("Corpus processed", 5)
+        self.progress_signal.emit("Corpus processed", 100)
 
+#------------------------------------------------------------------------------#
+
+# The main window with all its methods etc is defined here.
 
 class MainWindow(QMainWindow):
 
@@ -260,8 +280,8 @@ class MainWindow(QMainWindow):
         """
         try:
             open_dir = self.config["last_filename"]
-        except (TypeError, KeyError, FileNotFoundError):
-            open_dir = "."
+        except (TypeError, KeyError):
+            open_dir = "." # current directory
 
         open_file_dialog = QFileDialog()
         fname = QFileDialog.getOpenFileName(self,
@@ -270,7 +290,15 @@ class MainWindow(QMainWindow):
         # HACK: fname is supposed to be a string (at least according to the
         # PyQt5 documentation), but for some reason fname is a tuple.
         # So we need this hack to make sure that fname is a string of a filename
-        # -- Jackson Lee, 6/22/2015
+        # -- Jackson Lee, 2015/06/22
+
+        # update: it's turned out that this behavior is due to compatibility
+        # between PyQt and PySide. The "tuple" behavior is in line with the
+        # newer API2 for PyQt. (PyQt on python 3 uses API2 by default.)
+        # more here: http://srinikom.github.io/pyside-bz-archive/343.html
+        # so perhaps we keep our current hack for now?
+        # -- Jackson Lee, 2015/08/24
+
         if fname and any(fname) and (type(fname) is tuple):
             self.corpus_filename = fname[0]
         else:
@@ -298,14 +326,11 @@ class MainWindow(QMainWindow):
 
 
     def update_progress(self, progress_text, progress_number):
+        """Update the progress dialog. This function is triggered by the
+        "progress_signal" emitted from the linguistica component worker thread.
+        """
         self.progressDialog.setLabelText(progress_text)
         self.progressDialog.setValue(progress_number)
-
-
-    def teminate_lxa_worker(self):
-        self.lxa_worker.terminate()
-        self.lxa_worker.wait()
-        self.lxa_worker.quit()
 
 
     def run_corpus(self):
@@ -328,16 +353,23 @@ class MainWindow(QMainWindow):
         self.lxa_worker = LinguisticaComponentsWorker(
                             self.corpus_filename, self.config)
         self.lxa_worker.progress_signal.connect(self.update_progress)
-        number_of_components = 5
 
         # set up progress dialog
         self.progressDialog = QProgressDialog()
-        self.progressDialog.setRange(0, number_of_components)
+        self.progressDialog.setRange(0, 100) # it's like from 0% to 100%
         self.progressDialog.setLabelText("Extracting word ngrams...")
-        self.progressDialog.setValue(0.5)
+        self.progressDialog.setValue(5)
             # 0 would make it look like no progress at the beginning...
-        self.progressDialog.setWindowTitle("Processing {}".format(self.corpus_name))
+            # we set it as 5 (= 5% at the beginning) so the user thinks
+            # the program is working :-)
+        self.progressDialog.setWindowTitle(
+            "Processing {}".format(self.corpus_name))
         self.progressDialog.setCancelButton(None)
+            # We disable the "cancel" button
+            # Setting up a "cancel" mechanism may not be a good idea,
+            # since it would probably involve killing the linguistica component
+            # worker at *any* point of its processing.
+            # This may have undesirable effects (e.g., freezing the GUI) -- BAD!
         self.progressDialog.resize(400, 100)
         self.progressDialog.show()
 
@@ -345,11 +377,13 @@ class MainWindow(QMainWindow):
         # doing the real work of running the Lxa components
         QCoreApplication.processEvents() 
 
+        # Now the real work begins here!
         self.lxa_worker.start()
 
         QCoreApplication.processEvents()
 
-        # check if corpus has been run before, see if updating config is needed
+        # check if corpus has been run before
+        # see if updating config is needed (by writing a new config json file)
         new_config = False
         if self.corpus_filename not in self.filenames_run:
             self.filenames_run.append(self.corpus_filename)
@@ -425,6 +459,7 @@ class MainWindow(QMainWindow):
         self.status.showMessage("Navigation tree populated")
         print("Lexicon navigation tree populated", flush=True)
 
+
     def valid_filename(self):
         """check if there's a valid corpus text filename
         """
@@ -437,6 +472,7 @@ class MainWindow(QMainWindow):
             return False
 
         return True # = filename is good
+
 
     def tree_item_clicked(self, item):
         """trigger the appropriate action when something in the lexicon tree
@@ -580,6 +616,7 @@ class MainWindow(QMainWindow):
         self.status.clearMessage()
         self.status.showMessage("{} selected".format(item_str))
 
+
     def create_major_display_table(self, input_iterable,
             key=lambda x : x, reverse=False,
             headers=None, row_cell_functions=None, cutoff=0,
@@ -690,8 +727,9 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self.mainSplitter)
 
-
+    ######################
     ### not yet in use ###
+    ######################
     def filePreferencesDialog(self):
         return
         # complete revamp of this function needed, J Lee 2015/8/10
@@ -750,8 +788,9 @@ class MainWindow(QMainWindow):
         preferencesDialog.setLayout(overallLayout)
         preferencesDialog.exec_()
 
-
+    ######################
     ### not yet in use ###
+    ######################
     def updatePreferences(self):
         # complete revamp of this function needed, J Lee 2015/8/10
 
@@ -779,7 +818,11 @@ def main():
     app.setStyle('cleanlooks')
     app.setApplicationName("Linguistica")
 
-    # get screen resolution
+    # Get screen resolution
+    # Why do we need to know screen resolution?
+    # Because this information is useful for setting the size of particular
+    # widgets, e.g., the webview for visualizing the word neighbor manifold
+    # (the bigger the webview size, the better it is for visualization!)
     resolution = app.desktop().screenGeometry()
     screen_width = resolution.width()
     screen_height = resolution.height()
@@ -789,6 +832,7 @@ def main():
     form.show()
     app.exec_()
 
+#------------------------------------------------------------------------------#
 
 if __name__ == "__main__":
     main()
