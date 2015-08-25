@@ -7,7 +7,7 @@ with a corpus text file as input data.
 The current branch at https://github.com/lxa2015/lxa-py/tree/gui-test is a test
 version, in the anticipation of a graphical user interface. To whet your appetite:
 
-[Linguistica 5.1 GUI](gui_manifold.png)
+![Linguistica 5.1 GUI](gui_manifold.png)
 
 Linguistica 5.1 is a collection of several core components (more are being added):
 
