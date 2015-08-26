@@ -12,14 +12,14 @@ from pathlib import Path
 import sys
 
 from .signature_module import (read_word_freq_file, MakeBiSignatures,
-                               MakeStemToWords,
+                               MakeStemToWords, OutputSigToStemsJSON,
                                MakeSigToStems, MakeAffixToSigs,
                                MakeStemToSig, MakeWordToSigs,
                                MakeWordToSigtransforms)
 
 from .lxa5lib import (json_pdump, changeFilenameSuffix, OutputLargeDict,
                       read_word_freq, sorted_alphabetized,
-                      get_wordlist_path_corpus_stem)
+                      get_wordlist_path_corpus_stem, json_dump)
 
 from . import ngram
 
@@ -173,8 +173,8 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
 
     SigToStems_outfilename_json = changeFilenameSuffix(SigToStems_outfilename,
                                                        ".json")
-    json_pdump(SigToStems, SigToStems_outfilename_json.open("w"),
-               key=lambda x : len(x[1]), reverse=True)
+
+    OutputSigToStemsJSON(SigToStems, SigToStems_outfilename_json)
 
     print('===> output file generated:', SigToStems_outfilename, flush=True)
     print('===> output file generated:', SigToStems_outfilename_json, flush=True)
@@ -189,8 +189,9 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
 
     WordToSigs_outfilename_json = changeFilenameSuffix(WordToSigs_outfilename,
                                                        ".json")
-    json_pdump(WordToSigs, WordToSigs_outfilename_json.open("w"),
-               key=lambda x : len(x[1]), reverse=True)
+    json_dump(WordToSigs, WordToSigs_outfilename_json.open("w"))
+#    json_pdump(WordToSigs, WordToSigs_outfilename_json.open("w"),
+#               key=lambda x : len(x[1]), reverse=True)
 
     print('===> output file generated:', WordToSigs_outfilename, flush=True)
     print('===> output file generated:', WordToSigs_outfilename_json, flush=True)
@@ -267,9 +268,9 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
 # TODO: bring the following back later
 
 def to_be_handled():
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #        input and output files
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     Signatures_outfile = open(outfile_Signatures_name, 'w')
 
@@ -284,9 +285,9 @@ def to_be_handled():
 
 
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #       write log file header | TODO keep this part or rewrite?
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     #    outfile_log_name            = outfolder + corpus_stem + "_log.txt"
     #    log_file = open(outfile_log_name, "w")
@@ -301,11 +302,11 @@ def to_be_handled():
 
 
 
-    # ------------------------------------------------------------------------------#
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #                     Main part of program                              #
-    # ------------------------------------------------------------------------------#
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     # For the following dicts ---
     # BisigToTuple:  keys are tuples of bisig   Its values are (stem, word1, word2)
@@ -326,39 +327,39 @@ def to_be_handled():
 
 
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    1. Make signatures, and WordToSig dictionary,
     #       and Signature dictionary-of-stem-lists, and StemToSig dictionary
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     print("1.                Make signatures 1")
     print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
     print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    1a. Declare a linguistica-style FSA
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     splitEndState = True
     morphology = FSA_lxa(splitEndState)
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    1b. Find signatures, and put them in the FSA also.
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     SigToStems, WordToSig, StemToSig = MakeSignatures(StemToWord,
                                                       FindSuffixesFlag, MinimumNumberofSigUses)
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    1c. Print the FSA to file.
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     # print "line 220", outfile_FSA_name # TODO: what's this line for?
 
     # morphology.printFSA(FSA_outfile)
 
 
-    # ------------ Added Sept 24 (year 2013) for Jackson's program -----------------#
+    # ------------ Added Sept 24 (year 2013) for Jackson's program ------------#
     if True:
         printSignatures(SigToStems, WordToSig, StemCounts,
                         Signatures_outfile, g_encoding, FindSuffixesFlag)
@@ -369,31 +370,31 @@ def to_be_handled():
 
 
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     # 5. Look to see which signatures could be improved, and score the improvement
     #    quantitatively with robustness.
     # Then we improve the one whose robustness increase is the greatest.
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     print("***", file=Signatures_outfile)
     print("*** 5. Finding robust suffixes in stem sets\n\n", file=Signatures_outfile)
 
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    5a. Find morphemes within edges: how many times? NumberOfCorrections
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     for loopno in range(NumberOfCorrections):
-        # -------------------------------------------------------------------------#
+        # ---------------------------------------------------------------------#
         #    5b. For each edge, find best peripheral piece that might be 
         #           a separate morpheme.
-        # -------------------------------------------------------------------------#
+        # ---------------------------------------------------------------------#
         morphology.find_highest_weight_affix_in_an_edge(Signatures_outfile,
                                                         FindSuffixesFlag)
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    5c. Print graphics based on each state.
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     if True:
         for state in morphology.States:
             graph = morphology.createPySubgraph(state)
@@ -406,15 +407,15 @@ def to_be_handled():
             graph.write(filename)
 
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    5d. Print FSA again, with these changes.
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     if True:
         morphology.printFSA(FSA_outfile)
 
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     localtime1 = time.asctime(time.localtime(time.time()))
     print("Local current time :", localtime1)
 
@@ -424,7 +425,7 @@ def to_be_handled():
     # print "Time to parse all words: ", localtime2 - localtime1
 
 
-    # ------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
 
     print("Finding common stems across edges.", file=FSA_outfile)
@@ -491,7 +492,7 @@ def to_be_handled():
         print("Printed graph", str(loop), "after_merger")
         graph.draw(outfile_FSA_graphics_name)
 
-    # ---------------------------------------------------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     # We create a list of words, each word with its signature transform (so DOGS is turned into NULL.s_s, for example)
 
     if True:
@@ -499,19 +500,19 @@ def to_be_handled():
                                   FindSuffixesFlag)
 
 
-    # ---------------------------------------------------------------------------------------------------------------------------#
-    # ---------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    Close output files
-    # ---------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     FSA_outfile.close()
     Signatures_outfile.close()
     SigTransforms_outfile.close()
 
 
-    # ---------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
     #    Logging information
-    # ---------------------------------------------------------------------------------#
+    # -------------------------------------------------------------------------#
 
     localtime = time.asctime(time.localtime(time.time()))
     print("Local current time :", localtime)

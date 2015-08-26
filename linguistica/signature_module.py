@@ -8,7 +8,7 @@ import time
 import numpy as np
 import networkx as nx
 
-from .lxa5lib import (read_corpus_file, SEP_SIG, SEP_SIGTRANSFORM)
+from .lxa5lib import (read_corpus_file, SEP_SIG, SEP_SIGTRANSFORM, json_dump)
 from . import ngram
 # from fsm import State, Transducer, get_graph
 
@@ -23,6 +23,12 @@ from . import ngram
 
 #------------------------------------------------------------------------------#
 
+
+def OutputSigToStemsJSON(SigToStems, SigToStems_outfilename_json):
+    SigToStems_new = dict()
+    for sig, stems in SigToStems.items():
+        SigToStems_new[SEP_SIG.join(sig)] = stems
+    json_dump(SigToStems_new, SigToStems_outfilename_json.open("w"))
 
 def MakeAffixToSigs(sig_to_stems):
     affix_to_sigs = defaultdict(set)

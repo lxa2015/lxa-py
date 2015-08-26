@@ -151,9 +151,9 @@ class Lexicon:
             self.trigram_to_freq = json.load(self.trigram_to_freq_path.open())
 
         elif item_str == SIGS_TO_STEMS:
-            self.sig_to_stems = json_pload(self.sig_to_stems_path.open())
+            self.sig_to_stems = json.load(self.sig_to_stems_path.open())
         elif item_str == WORDS_TO_SIGS:
-            self.word_to_sigs = json_pload(self.word_to_sigs_path.open())
+            self.word_to_sigs = json.load(self.word_to_sigs_path.open())
 
         elif item_str == WORDS_AS_TRIES:
             self.tries_LtoR = json.load(self.tries_LtoR_path.open())

@@ -400,8 +400,7 @@ class MainWindow(QMainWindow):
                 self.lexicon.sig_to_stems.items(),
                 key=lambda x:len(x[1]), reverse=True,
                 headers=["Signature", "Stem count", "A few stems"],
-                row_cell_functions=[lambda x : SEP_SIG.join(x[0]),
-                    lambda x : len(x[1]),
+                row_cell_functions=[lambda x : x[0], lambda x : len(x[1]),
                     lambda x : ", ".join(sorted(x[1])[:2]) + ", ..."],
                 cutoff=0)
             # TODO: show a secondary table on the right of this tabular table
