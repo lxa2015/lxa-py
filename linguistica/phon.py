@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 
 from . import ngram
-from .lxa5lib import (json_pdump, changeFilenameSuffix, stdout_list,
+from .lxa5lib import (json_dump, changeFilenameSuffix, stdout_list,
                      get_wordlist_path_corpus_stem, sorted_alphabetized)
 
 #------------------------------------------------------------------------------#
@@ -147,15 +147,15 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
 
     outfilenamePhones_json = changeFilenameSuffix(outfilenamePhones, '.json')
     with outfilenamePhones_json.open('w') as f:
-        json_pdump(phoneDict, f, key=lambda x:x[1], reverse=True)
+        json_dump(phoneDict, f)
 
     outfilenameBiphones_json = changeFilenameSuffix(outfilenameBiphones, '.json')
     with outfilenameBiphones_json.open('w') as f:
-        json_pdump(biphoneDict, f, key=lambda x:x[1], reverse=True)
+        json_dump(biphoneDict, f)
 
     outfilenameTriphones_json = changeFilenameSuffix(outfilenameTriphones, '.json')
     with outfilenameTriphones_json.open('w') as f:
-        json_pdump(triphoneDict, f, key=lambda x:x[1], reverse=True)
+        json_dump(triphoneDict, f)
 
     print('phone, biphone and triphone files ready', flush=True)
 

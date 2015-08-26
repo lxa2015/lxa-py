@@ -4,7 +4,6 @@
 import json
 from pathlib import Path
 
-from ..lxa5lib import json_pload
 from .lxa5libgui import (
     WORDLIST, WORD_NGRAMS, BIGRAMS, TRIGRAMS,
     SIGNATURES, SIGS_TO_STEMS, WORDS_TO_SIGS,
@@ -124,24 +123,12 @@ class Lexicon:
         manifold_path = Path(corpus_dir, "neighbors")
         self.word_to_neighbors_path = Path(manifold_path,
                                          corpus_stem + "_1000_9_neighbors.json")
+            # TODO: allow other number of word types/neighbors
 
 
     def retrieve_data(self, item_str, cleardata=True):
         if cleardata:
             self.clear_data()
-
-        # TODO: switch to native python json.load here and abandon the custom
-        #   json_pload? json_pload is for serialized dicts created by
-        #   json_pdump. Both json_pload and json_pdump work slower than 
-        #   json.load and json.dump, because json_pload forces all keys and
-        #   values to be strings, and json_pdump has to determine if it is 
-        #   necessary to eval strings back to python objects -- this is what
-        #   slows everything down. Also, another motivation for json_pdump
-        #   was to "pretty dump" the dict so that it's human-readable when the
-        #   json is opened as a text file. But now we have decided that the json
-        #   files are only read by python and humans read the custom txt files,
-        #   there seem no reasons to keep json_pdump and json_pload?
-        #   -- Jackson Lee, 2015/8/25
 
         if item_str == WORDLIST:
             self.word_to_freq = json.load(self.word_to_freq_path.open())
@@ -160,11 +147,11 @@ class Lexicon:
             self.tries_RtoL = json.load(self.tries_RtoL_path.open())
 
         elif item_str == PHONES:
-            self.phone_to_freq = json_pload(self.phone_to_freq_path.open())
+            self.phone_to_freq = json.load(self.phone_to_freq_path.open())
         elif item_str == BIPHONES:
-            self.biphone_to_freq = json_pload(self.biphone_to_freq_path.open())
+            self.biphone_to_freq = json.load(self.biphone_to_freq_path.open())
         elif item_str == TRIPHONES:
-            self.triphone_to_freq = json_pload(self.triphone_to_freq_path.open())
+            self.triphone_to_freq = json.load(self.triphone_to_freq_path.open())
 
         elif item_str == WORD_NEIGHBORS:
             self.word_to_freq = json.load(self.word_to_freq_path.open())

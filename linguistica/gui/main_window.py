@@ -378,21 +378,21 @@ class MainWindow(QMainWindow):
             new_display = self.create_major_display_table(
                 self.lexicon.word_to_freq.items(),
                 key=lambda x:x[1], reverse=True, headers=["Word", "Frequency"],
-                row_cell_functions=[lambda x:x[0], lambda x:int(x[1])],
+                row_cell_functions=[lambda x:x[0], lambda x:x[1]],
                 cutoff=0)
 
         elif item_str == BIGRAMS:
             new_display = self.create_major_display_table(
                 self.lexicon.bigram_to_freq.items(),
                 key=lambda x:x[1], reverse=True, headers=["Bigram", "Frequency"],
-                row_cell_functions=[lambda x:x[0], lambda x:int(x[1])],
+                row_cell_functions=[lambda x:x[0], lambda x:x[1]],
                 cutoff=2000)
 
         elif item_str == TRIGRAMS:
             new_display = self.create_major_display_table(
                 self.lexicon.trigram_to_freq.items(),
                 key=lambda x:x[1], reverse=True, headers=["Trigram", "Frequency"],
-                row_cell_functions=[lambda x:x[0], lambda x:int(x[1])],
+                row_cell_functions=[lambda x:x[0], lambda x:x[1]],
                 cutoff=2000)
 
         elif item_str == SIGS_TO_STEMS:
@@ -442,31 +442,31 @@ class MainWindow(QMainWindow):
             new_display = self.create_major_display_table(
                 self.lexicon.phone_to_freq.items(),
                 key=lambda x:x[1], reverse=True, headers=["Phone", "Frequency"],
-                row_cell_functions=[lambda x:x[0], lambda x:int(x[1])],
+                row_cell_functions=[lambda x:x[0], lambda x:x[1]],
                 cutoff=0)
 
         elif item_str == BIPHONES:
             new_display = self.create_major_display_table(
                 self.lexicon.biphone_to_freq.items(),
                 key=lambda x:x[1], reverse=True, headers=["Biphone", "Frequency"],
-                row_cell_functions=[lambda x:x[0], lambda x:int(x[1])],
+                row_cell_functions=[lambda x:x[0], lambda x:x[1]],
                 cutoff=0)
 
         elif item_str == TRIPHONES:
             new_display = self.create_major_display_table(
                 self.lexicon.triphone_to_freq.items(),
                 key=lambda x:x[1], reverse=True, headers=["Triphone", "Frequency"],
-                row_cell_functions=[lambda x:x[0], lambda x:int(x[1])],
+                row_cell_functions=[lambda x:x[0], lambda x:x[1]],
                 cutoff=0)
 
         elif item_str == WORD_NEIGHBORS:
             word_to_freq = self.lexicon.word_to_freq
             new_display = self.create_major_display_table(
                 self.lexicon.word_to_neighbors.items(),
-                key=lambda x:int(word_to_freq[x[0]]), reverse=True,
+                key=lambda x: word_to_freq[x[0]], reverse=True,
                 headers=["Word", "Word Frequency", "Neighbors"],
                 row_cell_functions=[lambda x:x[0],
-                    lambda x : int(word_to_freq[x[0]]), lambda x:" ".join(x[1])],
+                    lambda x : word_to_freq[x[0]], lambda x:" ".join(x[1])],
                 cutoff=0)
 
         elif item_str == VISUALIZED_GRAPH:
