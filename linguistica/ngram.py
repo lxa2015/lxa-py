@@ -1,11 +1,10 @@
 #!usr/bin/env python3
 
-import json
 from collections import Counter
 from pathlib import Path
 
 from .lxa5lib import (stdout_list, sorted_alphabetized, SEP_NGRAM,
-                     changeFilenameSuffix)
+                     changeFilenameSuffix, json_dump)
 
 #------------------------------------------------------------------------------#
 #
@@ -163,13 +162,13 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     # print json outputs
     print("Outputting the JSON files...", flush=True)
     with changeFilenameSuffix(outfilenameWords, ".json").open('w') as f:
-        json.dump(wordDict, f)
+        json_dump(wordDict, f)
 
     with changeFilenameSuffix(outfilenameBigrams, ".json").open('w') as f:
-        json.dump(bigramDict, f)
+        json_dump(bigramDict, f)
 
     with changeFilenameSuffix(outfilenameTrigrams, ".json").open('w') as f:
-        json.dump(trigramDict, f)
+        json_dump(trigramDict, f)
 
     stdout_list("Output files:", outfilenameWords,
                 outfilenameBigrams, outfilenameTrigrams, outfilenameDx1,
