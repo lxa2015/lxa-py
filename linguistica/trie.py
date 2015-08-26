@@ -315,11 +315,9 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
 
     outfile_trieLtoR_name_json = changeFilenameSuffix(outfile_trieLtoR_name, ".json")
     OutputTrieJSON(outfile_trieLtoR_name_json, WordsBrokenLtoR)
-#    json_pdump(WordsBrokenLtoR, outfile_trieLtoR_name_json.open("w"))
 
     outfile_trieRtoL_name_json = changeFilenameSuffix(outfile_trieRtoL_name, ".json")
     OutputTrieJSON(outfile_trieRtoL_name_json, WordsBrokenRtoL, reverse=True)
-#    json_pdump(WordsBrokenRtoL, outfile_trieRtoL_name_json.open("w"))
 
     stdout_list("Output files:", outfile_SF_name, outfile_PF_name,
                                  outfile_trieLtoR_name, outfile_trieRtoL_name,

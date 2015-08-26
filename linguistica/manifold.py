@@ -29,8 +29,8 @@ from .manifold_module import (GetMyWords, GetContextArray,
 from . import ngram
 from . import signature
 
-from .lxa5lib import (json_pdump, changeFilenameSuffix, stdout_list, json_pload,
-                      SEP_SIG, SEP_SIGTRANSFORM)
+from .lxa5lib import (changeFilenameSuffix, stdout_list, json_pload,
+                      SEP_SIG, SEP_SIGTRANSFORM, json_dump)
 
 
 def main(language=None, corpus=None, datafolder=None, filename=None,
@@ -190,7 +190,7 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     json.dump(manifold_json_data, outfilenameManifoldJson.open("w"))
 
     WordToNeighbors_json = changeFilenameSuffix(outfilenameNeighbors, ".json")
-    json_pdump(WordToNeighbors, WordToNeighbors_json.open("w"), asis=True)
+    json_dump(WordToNeighbors, WordToNeighbors_json.open("w"))
 
     print("Computing shared contexts among neighbors...", flush=True)
     WordToSharedContextsOfNeighbors, \

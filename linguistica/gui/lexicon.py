@@ -168,7 +168,7 @@ class Lexicon:
 
         elif item_str == WORD_NEIGHBORS:
             self.word_to_freq = json.load(self.word_to_freq_path.open())
-            self.word_to_neighbors = json_pload(self.word_to_neighbors_path.open())
+            self.word_to_neighbors = json.load(self.word_to_neighbors_path.open())
 
         elif item_str == VISUALIZED_GRAPH:
             return
