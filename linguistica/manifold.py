@@ -187,7 +187,7 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     # output manifold as json for d3 visualization
     manifold_json_data = json_graph.node_link_data(neighbor_graph)
     outfilenameManifoldJson = Path(outfolder, corpusName + "_manifold.json")
-    json.dump(manifold_json_data, outfilenameManifoldJson.open("w"))
+    json_dump(manifold_json_data, outfilenameManifoldJson.open("w"))
 
     WordToNeighbors_json = changeFilenameSuffix(outfilenameNeighbors, ".json")
     json_dump(WordToNeighbors, WordToNeighbors_json.open("w"))
@@ -211,11 +211,11 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
 
     # output WordToContexts, ContextTOWords
     outputfilelist.append(outWordToContexts_json)
-    json.dump(WordToContexts, outWordToContexts_json.open("w"),
+    json_dump(WordToContexts, outWordToContexts_json.open("w"),
         separators=(',', ':'))
 
     outputfilelist.append(outContextToWords_json)
-    json.dump(ContextToWords, outContextToWords_json.open("w"),
+    json_dump(ContextToWords, outContextToWords_json.open("w"),
         separators=(',', ':'))
 
     # print to stdout the list of output files
