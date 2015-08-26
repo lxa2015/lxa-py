@@ -1,5 +1,3 @@
-#!usr/bin/env python3
-
 # This program creates a left-to-right trie and a right-to-left trie,
 # as well as both successors and predecessors.
 #

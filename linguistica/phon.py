@@ -1,5 +1,3 @@
-#!usr/bin/env python3
-
 from collections import Counter
 import argparse
 from pathlib import Path

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # John Goldsmith, 2012-
 # Jackson Lee, 2015-
 # Anton Melnikov, 2015-
