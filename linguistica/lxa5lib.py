@@ -183,7 +183,7 @@ def proceed_or_not():
         sys.exit("Program terminated by user")
     print('--------------------------')
 
-
+# TODO: abandoning json_pload and json_pdump
 def json_pdump(inputdict, outfile,
                key=lambda x:x, reverse=False,
                asis=False,
@@ -210,7 +210,7 @@ def json_pdump(inputdict, outfile,
               ensure_ascii=ensure_ascii,
               indent=indent, separators=separators)
 
-
+# TODO: abandoning json_pload and json_pdump
 def json_pload(infile):
     '''json pretty load'''
     outdict = json.load(infile)

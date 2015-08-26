@@ -190,8 +190,6 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     WordToSigs_outfilename_json = changeFilenameSuffix(WordToSigs_outfilename,
                                                        ".json")
     json_dump(WordToSigs, WordToSigs_outfilename_json.open("w"))
-#    json_pdump(WordToSigs, WordToSigs_outfilename_json.open("w"),
-#               key=lambda x : len(x[1]), reverse=True)
 
     print('===> output file generated:', WordToSigs_outfilename, flush=True)
     print('===> output file generated:', WordToSigs_outfilename_json, flush=True)

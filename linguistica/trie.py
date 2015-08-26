@@ -295,6 +295,8 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     predecessors = GetSuccessors(reversedwordlist, WordsBrokenRtoL)
     OutputSuccessors(outfile_PF_name, predecessors, SF_threshold, reverse=True)
 
+    # TODO: abandon json_pdump
+
     outfile_SF_name_json = changeFilenameSuffix(outfile_SF_name, ".json")
     json_pdump(successors, outfile_SF_name_json.open("w"))
 
