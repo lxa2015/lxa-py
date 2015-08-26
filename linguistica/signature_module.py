@@ -1582,67 +1582,6 @@ def MakeBiSignatures(wordlist, MinimumStemLength, MaximumAffixLength,
 
     return BisigToTuple
 
-    ######################################################################
-
-    # subwordlist stores words in wordlist whose first k letters
-    #   are the same (k = MinimumStemLength)
-#    if FindSuffixesFlag:
-#        subwordlist = [wordlist[0]]
-#    else:
-#        subwordlist = [wordlist[0][::-1]]
-
-#    for n in range(1, nWords):
-#        word1 = wordlist[n - 1]
-#        word2 = wordlist[n]
-
-#        if not FindSuffixesFlag:
-#            word1 = word1[::-1]
-#            word2 = word2[::-1]
-
-#        minimalstem = word1[: MinimumStemLength]
-#        if minimalstem == word2[: MinimumStemLength]:
-#            subwordlist.append(word2)
-#            continue
-#        else:
-#            wordlist_forAnalysisNow = list(subwordlist)
-#            subwordlist = [word2]
-
-#        for (word1, word2) in combinations(wordlist_forAnalysisNow, 2):
-
-#            stem = maximalcommonprefix(word1, word2)
-#            stemlen = len(stem)
-#            suffix1 = word1[stemlen:]
-#            suffix2 = word2[stemlen:]
-
-#            if len(suffix1) > MaximumAffixLength or \
-#                            len(suffix2) > MaximumAffixLength:
-#                continue
-
-#            if not FindSuffixesFlag:
-#                word1 = word1[::-1]
-#                word2 = word2[::-1]
-#                stem = stem[::-1]
-#                suffix1 = suffix1[::-1]
-#                suffix2 = suffix2[::-1]
-
-#            if len(suffix1) == 0:
-#                suffix1 = 'NULL'
-#            if len(suffix2) == 0:
-#                suffix2 = 'NULL'
-
-#            bisig = list()  # stores two affixes
-#            bisig.append(suffix1)
-#            bisig.append(suffix2)
-
-#            bisig.sort()
-#            bisigtuple = tuple(bisig)
-
-#            if not bisigtuple in BisigToTuple:
-#                BisigToTuple[bisigtuple] = set()
-#            chunk = (stem, word1, word2)
-#            BisigToTuple[bisigtuple].add(chunk)
-
-#    return BisigToTuple
 
 # currently not used
 # ------------------------------------------------------------------------------#

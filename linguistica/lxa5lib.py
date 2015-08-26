@@ -386,11 +386,12 @@ class LinguisticaJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def json_dump(inputdict, outfile_opened, ensure_ascii=False, indent=None,
-        separators=(',', ':'), cls=LinguisticaJSONEncoder):
+def json_dump(obj, outfile_opened, ensure_ascii=False, indent=None,
+        separators=(',', ':'), sort_keys=True, cls=LinguisticaJSONEncoder):
     """json.dump with our preferred parameters
     """
-    json.dump(inputdict, outfile_opened, ensure_ascii=ensure_ascii,
-              indent=indent, separators=separators, cls=cls)
+    json.dump(obj, outfile_opened, ensure_ascii=ensure_ascii,
+              indent=indent, sort_keys=sort_keys, separators=separators,
+              cls=cls)
 
 

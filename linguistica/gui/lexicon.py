@@ -156,8 +156,8 @@ class Lexicon:
             self.word_to_sigs = json_pload(self.word_to_sigs_path.open())
 
         elif item_str == WORDS_AS_TRIES:
-            self.tries_LtoR = json_pload(self.tries_LtoR_path.open())
-            self.tries_RtoL = json_pload(self.tries_RtoL_path.open())
+            self.tries_LtoR = json.load(self.tries_LtoR_path.open())
+            self.tries_RtoL = json.load(self.tries_RtoL_path.open())
 
         elif item_str == PHONES:
             self.phone_to_freq = json_pload(self.phone_to_freq_path.open())

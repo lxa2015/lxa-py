@@ -427,8 +427,7 @@ class MainWindow(QMainWindow):
 
             for word in words:
                 LtoR_trie = " ".join(self.lexicon.tries_LtoR[word])
-                RtoL_trie = " ".join([x[::-1]
-                            for x in self.lexicon.tries_RtoL[word[::-1]][::-1]])
+                RtoL_trie = " ".join(self.lexicon.tries_RtoL[word])
                 word_to_tries[word] = (LtoR_trie, RtoL_trie)
 
             new_display = self.create_major_display_table(

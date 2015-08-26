@@ -11,7 +11,8 @@ from pathlib import Path
 
 from . import ngram
 from .lxa5lib import (json_pdump, changeFilenameSuffix, stdout_list,
-                     get_wordlist_path_corpus_stem, read_word_freq)
+                     get_wordlist_path_corpus_stem, read_word_freq,
+                     json_dump)
 
 
 def findBreaksInWords(wordlist, MinimumStemLength):
@@ -132,6 +133,19 @@ def OutputSuccessors(outfilename, successors, SF_threshold, reverse=False):
 
             print(word + "\t" + str(SF_size) + "\t" + \
                   "\t".join(sorted(successors[word])), file=f)
+
+
+def OutputTrieJSON(outfilename, WordsBroken, reverse=False):
+
+    if reverse:
+        #  we are dealing with precedessors here, not successors
+        WordsBroken_new = dict()
+        for word, word_as_pieces in WordsBroken.items():
+            WordsBroken_new[word[::-1]] = [x[::-1] for x in word_as_pieces[::-1]]
+        WordsBroken = WordsBroken_new
+
+    json_dump(WordsBroken, outfilename.open("w"))
+
 
 def OutputSignatures1(outfilename, successors):
     stemlist = list(successors.keys())
@@ -300,10 +314,12 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     OutputTrie(outfile_trieRtoL_name, reversedwordlist, WordsBrokenRtoL, reverse=True)
 
     outfile_trieLtoR_name_json = changeFilenameSuffix(outfile_trieLtoR_name, ".json")
-    json_pdump(WordsBrokenLtoR, outfile_trieLtoR_name_json.open("w"))
+    OutputTrieJSON(outfile_trieLtoR_name_json, WordsBrokenLtoR)
+#    json_pdump(WordsBrokenLtoR, outfile_trieLtoR_name_json.open("w"))
 
     outfile_trieRtoL_name_json = changeFilenameSuffix(outfile_trieRtoL_name, ".json")
-    json_pdump(WordsBrokenRtoL, outfile_trieRtoL_name_json.open("w"))
+    OutputTrieJSON(outfile_trieRtoL_name_json, WordsBrokenRtoL, reverse=True)
+#    json_pdump(WordsBrokenRtoL, outfile_trieRtoL_name_json.open("w"))
 
     stdout_list("Output files:", outfile_SF_name, outfile_PF_name,
                                  outfile_trieLtoR_name, outfile_trieRtoL_name,
