@@ -1,15 +1,16 @@
-#!/usr/bin/env python3
-
-# definition of the class Lexicon for the Linguistica 5 GUI
+# Definition of the class Lexicon for the Linguistica 5 GUI
 # Jackson Lee, 2015
 
 import json
 from pathlib import Path
 
-from linguistica.lxa5lib import json_pload
-from lxa5libgui import *
-
-__author__ = "Jackson L. Lee"
+from ..lxa5lib import json_pload
+from .lxa5libgui import (
+    WORDLIST, WORD_NGRAMS, BIGRAMS, TRIGRAMS,
+    SIGNATURES, SIGS_TO_STEMS, WORDS_TO_SIGS,
+    TRIES, WORDS_AS_TRIES, SF_TRIES, PF_TRIES,
+    PHONOLOGY, PHONES, BIPHONES, TRIPHONES,
+    MANIFOLDS, WORD_NEIGHBORS, VISUALIZED_GRAPH, SHOW_MANIFOLD_HTML)
 
 class Lexicon:
     def __init__(self, corpus_filename):
@@ -128,6 +129,19 @@ class Lexicon:
     def retrieve_data(self, item_str, cleardata=True):
         if cleardata:
             self.clear_data()
+
+        # TODO: switch to native python json.load here and abandon the custom
+        #   json_pload? json_pload is for serialized dicts created by
+        #   json_pdump. Both json_pload and json_pdump work slower than 
+        #   json.load and json.dump, because json_pload forces all keys and
+        #   values to be strings, and json_pdump has to determine if it is 
+        #   necessary to eval strings back to python objects -- this is what
+        #   slows everything down. Also, another motivation for json_pdump
+        #   was to "pretty dump" the dict so that it's human-readable when the
+        #   json is opened as a text file. But now we have decided that the json
+        #   files are only read by python and humans read the custom txt files,
+        #   there seem no reasons to keep json_pdump and json_pload?
+        #   -- Jackson Lee, 2015/8/25
 
         if item_str == WORDLIST:
             self.word_to_freq = json.load(self.word_to_freq_path.open())

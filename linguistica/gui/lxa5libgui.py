@@ -1,4 +1,8 @@
-__version__ = "5.1.0"
+# General "util" library for Linguistica 5 GUI
+# Jackson Lee, 2015
+
+# This library is exclusively for the GUI,
+# nothing for the command line interface.
 
 #------------------------------------------------------------------------------#
 
@@ -10,69 +14,6 @@ TREEWIDGET_HEIGHT_MIN = 400
 
 MAIN_WINDOW_WIDTH = 1000
 MAIN_WINDOW_HEIGHT = 600
-
-#------------------------------------------------------------------------------#
-
-# configuration, with the "factory settings"
-
-# What programs use what parameters:
-#   ngrams.py:    max_word_tokens
-#   signature.py: max_word_tokens, min_stem_length, max_affix_length, min_sig_use
-#   phon.py:      max_word_tokens
-#   tries.py:     max_word_tokens, min_stem_length, min_affix_length, min_sf_pf_count
-#   manifold.py   max_word_types, n_neighbors, n_eigenvectors, min_context_use
-# (See the individual programs for what these parameters mean.)
-
-CONFIG = {"max_word_tokens": 0, # zero means all word tokens
-          "min_stem_length": 4,
-          "max_affix_length": 4,
-          "min_sig_use": 5,
-          "min_affix_length": 1,
-          "min_sf_pf_count": 3,
-          "n_neighbors": 9,
-          "n_eigenvectors": 11,
-          "min_context_use": 3,
-          "max_word_types": 1000,
-
-          "last_filename": None,
-          "filenames_run": list(),
-
-          "language" : "",
-          "corpus" : "",
-          "datafolder" : "",
-         }
-
-CONFIG_FILENAME = "config.json"
-
-#------------------------------------------------------------------------------#
-
-# constants for the various programs
-
-PROGRAMS = {"all", "signature", "ngram", "trie", "phon", "manifold"}
-
-PROGRAM_TO_DESCRIPTION = {
-    "ngram": "This program extracts word n-grams.",
-    "signature": "This program computes morphological signatures.",
-    "phon": "This program extracts phon n-grams and works on phonotactics.",
-    "trie": "This program computes tries and successor/predecessor frequencies.",
-    "manifold": "This program computes word neighbors.",
-}
-
-
-PROGRAM_TO_PARAMETERS = { # useful to know what parameters each program cares about
-    "ngram": ["max_word_tokens"],
-    "signature": ["max_word_tokens", "min_stem_length", "max_affix_length", 
-                  "min_sig_use"],
-    "phon": ["max_word_tokens"],
-    "trie": ["max_word_tokens", "min_stem_length", "min_affix_length",
-             "min_sf_pf_count"],
-    "manifold": ["max_word_types", "n_neighbors", "n_eigenvectors",
-                 "min_context_use"],
-    "all": ["max_word_tokens", "min_stem_length", "max_affix_length",
-            "min_sig_use", "min_affix_length", "min_sf_pf_count",
-            "n_neighbors", "n_eigenvectors", "min_context_use",
-            "max_word_types"],
-}
 
 #------------------------------------------------------------------------------#
 

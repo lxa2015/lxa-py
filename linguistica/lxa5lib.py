@@ -1,17 +1,21 @@
-#!usr/bin/env python3
+# General util library for Linguistica 5
+# Jackson Lee, 2015
 
-from collections import Counter
+# Note that there is the "lxa5libgui.py" as well, which is only for the GUI.
+
 import sys
 import json
 from pathlib import Path
 from distutils.util import strtobool
-from collections import OrderedDict
-from pprint import pprint
+from collections import (OrderedDict, Counter)
 from itertools import (zip_longest, groupby)
 
 #------------------------------------------------------------------------------#
 #    constants
 #------------------------------------------------------------------------------#
+
+__version__ = "5.1.0"
+__author__ = 'Jackson L. Lee'
 
 SEP_SIG = "-"          # separator between affixes in a sig (NULL-s-ed-ing)
 SEP_SIGTRANSFORM = "." # separator between sig and affix (NULL-s-ed-ing.ed)
@@ -19,6 +23,70 @@ SEP_SIGTRANSFORM = "." # separator between sig and affix (NULL-s-ed-ing.ed)
 SEP_NGRAM = "\t" # separator between words in an ngram
     # (e.g., the context "the\tunited\tstates" means "the united states".
     #                    "the\t_\tof" means "the _ of" )
+
+#------------------------------------------------------------------------------#
+
+# configuration, with the "factory settings"
+
+# What programs use what parameters:
+#   ngram.py:    max_word_tokens
+#   signature.py: max_word_tokens, min_stem_length, max_affix_length, min_sig_use
+#   phon.py:      max_word_tokens
+#   trie.py:     max_word_tokens, min_stem_length, min_affix_length, min_sf_pf_count
+#   manifold.py   max_word_types, n_neighbors, n_eigenvectors, min_context_use
+# (See the individual programs for what these parameters mean.)
+
+CONFIG = {"max_word_tokens": 0, # zero means all word tokens
+          "min_stem_length": 4,
+          "max_affix_length": 4,
+          "min_sig_use": 5,
+          "min_affix_length": 1,
+          "min_sf_pf_count": 3,
+          "n_neighbors": 9,
+          "n_eigenvectors": 11,
+          "min_context_use": 3,
+          "max_word_types": 1000,
+
+          "last_filename": "",
+          "filenames_run": list(),
+
+          "language" : "",
+          "corpus" : "",
+          "datafolder" : "",
+         }
+
+CONFIG_FILENAME = "config.json"
+
+#------------------------------------------------------------------------------#
+
+# constants for the various programs
+
+PROGRAMS = {"all", "signature", "ngram", "trie", "phon", "manifold"}
+
+PROGRAM_TO_DESCRIPTION = {
+    "ngram": "This program extracts word n-grams.",
+    "signature": "This program computes morphological signatures.",
+    "phon": "This program extracts phon n-grams and works on phonotactics.",
+    "trie": "This program computes tries and successor/predecessor frequencies.",
+    "manifold": "This program computes word neighbors.",
+}
+
+
+PROGRAM_TO_PARAMETERS = { # useful to know what parameters each program cares about
+    "ngram": ["max_word_tokens"],
+    "signature": ["max_word_tokens", "min_stem_length", "max_affix_length", 
+                  "min_sig_use"],
+    "phon": ["max_word_tokens"],
+    "trie": ["max_word_tokens", "min_stem_length", "min_affix_length",
+             "min_sf_pf_count"],
+    "manifold": ["max_word_types", "n_neighbors", "n_eigenvectors",
+                 "min_context_use"],
+    "all": ["max_word_tokens", "min_stem_length", "max_affix_length",
+            "min_sig_use", "min_affix_length", "min_sf_pf_count",
+            "n_neighbors", "n_eigenvectors", "min_context_use",
+            "max_word_types"],
+}
+
 
 #------------------------------------------------------------------------------#
 #    general functions used by various lxa5 components
@@ -116,222 +184,6 @@ def proceed_or_not():
     print('--------------------------')
 
 
-def get_language_corpus_datafolder(_language, _corpus, _datafolder,
-                                   configfilename="config.json",
-                                   description="", scriptname="<file>"):
-
-    newconfig = False # need to write new config file or not
-
-    print("\n===============================================================\n")
-    print(description)
-    print()
-
-    print("If this program has parameters (shown above) and if any of them\n"
-          "are undesirable, terminate the program now and run the program\n"
-          "again by explicitly providing the command line arguments.\n"
-          "For details, run \"python3 {} -h\"\n".format(scriptname))
-
-    # -------------------------------------------------------------------------#
-    # check current directory and config filename. Print them to stdout
-
-    current_dir = Path.cwd()
-    print("Your current directory:\n{}\n".format(current_dir))
-
-    config_path = Path(configfilename)
-
-    if config_path.exists():
-        configtext = "(present in the current directory)"
-    else:
-        configtext = "(NOT present in the current directory)"
-        newconfig = True
-
-    print("Configuration filename:\n{} {}\n".format(configfilename, configtext))
-
-    # -------------------------------------------------------------------------#
-    # The following 3 chunks of code are meant to determine the values of
-    # language, corpus, and datafolder.
-
-    # 1. If user explicitly provides command line arguments for any of
-    #   {language, corpus, datafolder},
-    #   then the program should use them.
-
-    language, corpus, datafolder = _language, _corpus, _datafolder
-
-    print("\nAccording to your command line arguments --\n"
-          "\tLanguage: {}\n"
-          "\tCorpus: {}\n"
-          "\tDatafolder path "
-          "(relative to current directory): {}\n".format(language,
-                                                         corpus, datafolder))
-
-    # 2. If any of {language, corpus, datafolder} are None (= not explicitly
-    #   given from the user's command line arguments),
-    #   then:
-    #       if config file is present:
-    #           the program attempts to retrieve whichever values
-    #           among {language, corpus, datafolder} are needed.
-
-    if language or corpus or datafolder:
-        # if true,
-        # then at least one of these three arguments is explicitly entered
-        # by user, which means we need to write the new config file
-        newconfig = True
-
-    if not language or not corpus or not datafolder:
-        print("At least one of the three values above is None.\n")
-
-        if config_path.exists():
-            print("Because the configuration file {} is present,\n"
-                  "the program now attempts to retrieve the missing values\n"
-                  "from this configuration file.\n".format(configfilename))
-
-            try:
-                with config_path.open() as config_file:
-                    config = json.load(config_file)
-                    if not language:
-                        try:
-                            language = config['language']
-                        except (KeyError, ValueError):
-                            language = None
-                    if not corpus:
-                        try:
-                            corpus = config['corpus']
-                        except (KeyError, ValueError):
-                            corpus = None
-                    if not datafolder:
-                        try:
-                            datafolder = config['datafolder']
-                        except (KeyError, ValueError):
-                            datafolder = None
-
-            except (FileNotFoundError, ValueError):
-                print("Error in reading the configuration file {}\n"
-                      "in the current directory!\n".format(config_path))
-
-    # 3. If any of {language, corpus, datafolder} are still unknown,
-    #   then the program asks the user
-    #   to provide them using the input() function.
-
-    if not language:
-        language = input('Enter language name: ')
-        newconfig = True
-    if not corpus:
-        corpus = input('Enter corpus filename: ')
-        newconfig = True
-    if not datafolder:
-        datafolder = input('Enter datafolder relative path: ')
-        newconfig = True
-
-    # -------------------------------------------------------------------------#
-    # write the configuration file
-
-    if newconfig:
-        if not config_path.exists():
-            config = {'language': language,
-                      'corpus': corpus,
-                      'datafolder': datafolder}
-        else:
-            config = json.load(config_path.open())
-            config.update({'language': language,
-                           'corpus': corpus,
-                           'datafolder': datafolder})
-
-        with config_path.open('w') as config_file:
-            json.dump(config, config_file)
-            print('New configuration file \"{}\" written.'.format(config_path))
-
-    # -------------------------------------------------------------------------#
-    # print to stdout the latest info for language, corpus, and datafolder
-
-    print("\nNow the program has the following --")
-
-    print("\tLanguage: {}".format(language))
-    print("\tCorpus: {}".format(corpus))
-    print("\tDatafolder path "
-          "(relative to current directory): {}".format(datafolder))
-
-    testPath = Path(datafolder, language, corpus)
-
-    # -------------------------------------------------------------------------#
-    # print to stdout to show user what corpus file is being expected
-    # ask user if the program should proceed or not
-
-    print("\nBased on these three values, the program is looking for the\n"
-          "following corpus file relative to the current directory:\n\n"
-          "{}".format(testPath))
-
-    print("\nIf any of {language, corpus, datafolder} or the expected corpus\n"
-          "file is undesirable, terminate the program now and run again by\n"
-          "explicitly providing the command line arguments.\n")
-
-    proceed_or_not()
-
-    # -------------------------------------------------------------------------#
-    # make sure the expected file exists. If not, exit the program.
-
-    if not testPath.exists():
-        sys.exit('\nCorpus file "{}" does not exist.\n'
-                 'Check file paths and names.'.format(testPath))
-
-    return language, corpus, datafolder
-
-
-def load_config_for_command_line_help(configfilename="config.json"):
-
-    config_path = Path(configfilename)
-    try:
-        with config_path.open() as config_file:
-            config = json.load(config_file)
-        language = config['language']
-        corpus = config['corpus']
-        datafolder = config['datafolder']
-
-        configtext = "The configuration file {} is present: ".format(configfilename) + \
-                     "[language: {}] ".format(language) + \
-                     "[corpus file: {}] ".format(corpus) + \
-                     "[data folder relative to " + \
-                     "current directory: \"{}\"]\n".format(datafolder)
-
-    except (FileNotFoundError, KeyError, ValueError):
-        language = None
-        corpus = None
-        datafolder = None
-
-        configtext = "No valid configuration file located."
-
-    return language, corpus, datafolder, configtext
-
-
-# load_config() not used by get_language_corpus_datafolder() now
-# but don't delete this function yet
-# Anton may still be using it -- check with him
-def load_config(language, corpus, datafolder, filename='config.json',
-                writenew=True):
-    config_path = Path(filename)
-    if not language or not corpus or not datafolder:
-        try:
-            # see if it's there
-            with config_path.open() as config_file:
-                config = json.load(config_file)
-            language = config['language']
-            corpus = config['corpus']
-            datafolder = config['datafolder']
-            writenew = False
-        except (FileNotFoundError, KeyError, ValueError):
-            language = input('enter language name: ')
-            corpus = input('enter corpus filename: ')
-            datafolder = input('enter data path: ')
-
-    if writenew:
-        config = {'language': language,
-                  'corpus': corpus,
-                  'datafolder': datafolder}
-        with config_path.open('w') as config_file:
-            json.dump(config, config_file)
-
-    return language, corpus, datafolder
-
-
 def json_pdump(inputdict, outfile,
                key=lambda x:x, reverse=False,
                asis=False,
@@ -414,27 +266,6 @@ def sorted_alphabetized(input_object, key=lambda x: x, reverse=False,
         new_sorted_list.extend(sublist)
 
     return new_sorted_list
-
-
-# not yet used, still at experimental stage. J Lee, 2015/8/5
-def OutputLargeDictOfKeyToCount(outfilename, inputdict,
-                                sortkey=lambda x:x, reverse=False,
-                                keyformat=lambda x: str(x),
-                                append=False):
-    inputdictSortedList = sorted_alphabetized([(keyformat(k), v)
-                                               for k, v in inputdict.items()],
-                                              key=sortkey, reverse=reverse)
-
-    if append:
-        open_parameter = "a" # append existing file
-    else:
-        open_parameter = "w" # write new file
-
-    max_key_length = max([len(k) for k, v in inputdictSortedList])
-
-    with outfilename.open(open_parameter) as f:
-        for k, v in inputdictSortedList:
-            print("{} {}".format(k.ljust(max_key_length), v), file=f)
 
 
 def OutputLargeDict(outfilename, inputdict,
@@ -537,72 +368,4 @@ def OutputLargeDict(outfilename, inputdict,
 
             print(file=f)
 
-"""John created a slight variant of preceding function, but for WordToSigs;
-left the old one untouched since I didn't know what other functions called it"""
-
-# currently not used
-def OutputLargeDict2(outfilename, inputdict, SignatureFlag=True):
-    if SignatureFlag:
-        punctuation = SEP_SIG
-    else:
-        punctuation = ""
-
-    items_sorted_list = sorted(inputdict.keys())
-    MaxStemLength = 0
-    MaxLength = 0
-    MaxColumnWidth = {}
-
-    # Find out the maximum number of sigs for each stem
-    for stem in items_sorted_list:
-
-        if len(inputdict[stem]) > MaxLength:
-            MaxLength = len(inputdict[stem])
-        if len(stem) > MaxStemLength:
-            MaxStemLength = len(stem)
-
-    MaxStemLength += 1
-
-    # Create a dict for each column's width
-    for length in range(MaxLength + 1):
-        MaxColumnWidth[length] = 0
-
-    # a list of lines to be written to a file later
-    these_lines = []
-
-    # Find the longest entry in each column
-    for stem in items_sorted_list:
-        these_items = inputdict[stem]
-        for signo in range(len(these_items)):
-            this_item = these_items[signo]
-
-            if SignatureFlag:
-                if len(punctuation.join(this_item)) > MaxColumnWidth[signo]:
-                    MaxColumnWidth[signo] = len(punctuation.join(this_item))
-            else:
-                if len(this_item) > MaxColumnWidth[signo]:
-                    MaxColumnWidth[signo] = len(punctuation.join(this_item))
-
-        # find the longest entry in each column
-
-        for stem in items_sorted_list:
-            these_items = inputdict[stem]
-
-            this_line = []
-            this_line.append(stem + " " * (MaxStemLength - len(stem)))
-
-            for signo in range(len(these_items)):
-                this_item = these_items[signo]
-
-                if SignatureFlag:
-                    this_line.append(punctuation.join(this_item)
-                                 + " " * (MaxColumnWidth[signo] + 1 - len(this_item)))
-                else:
-                    this_line.append(this_item
-                                     + " " * (MaxColumnWidth[signo] + 1 - len(this_item)))
-
-            these_lines.append(''.join(this_line))
-
-    with outfilename.open('w') as file:
-        for this_line in these_lines:
-            print(this_line, file=file)
 

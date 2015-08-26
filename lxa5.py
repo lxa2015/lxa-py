@@ -1,17 +1,15 @@
 #!usr/bin/env python3
 
-__author__ = "Jackson L. Lee"
-
 import sys
 import os
 import json
 import argparse
 from pathlib import Path
 
-from lxa5libgui import (__version__, CONFIG, CONFIG_FILENAME, PROGRAMS,
-                        PROGRAM_TO_DESCRIPTION, PROGRAM_TO_PARAMETERS)
-
-from linguistica.lxa5lib import (determine_use_corpus, proceed_or_not)
+from linguistica.lxa5lib import (__version__, determine_use_corpus,
+                                 proceed_or_not,
+                                 CONFIG, CONFIG_FILENAME, PROGRAMS,
+                                 PROGRAM_TO_DESCRIPTION, PROGRAM_TO_PARAMETERS)
 
 from linguistica import signature
 from linguistica import ngram
