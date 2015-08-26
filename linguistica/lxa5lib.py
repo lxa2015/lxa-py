@@ -262,6 +262,12 @@ def sorted_alphabetized(input_object, key=lambda x: x, reverse=False,
 
         # must use "list(group)", cannot use just "group"!
         sublist = sorted(list(group), key=subkey, reverse=subreverse)
+        # see python 3.4 documentation:
+        # https://docs.python.org/3/library/itertools.html#itertools.groupby
+        # "The returned group is itself an iterator that shares the underlying
+        # iterable with groupby(). Because the source is shared, when the 
+        # groupby() object is advanced, the previous group is no longer visible.
+        # So, if that data is needed later, it should be stored as a list"
 
         new_sorted_list.extend(sublist)
 

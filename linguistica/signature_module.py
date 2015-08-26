@@ -1,10 +1,9 @@
-from collections import Counter, defaultdict
-from itertools import combinations
+from collections import (Counter, defaultdict)
+from itertools import (combinations, groupby)
 import math
 import os
 from pathlib import Path
 import time
-from pprint import pprint
 
 import numpy as np
 import networkx as nx
@@ -20,7 +19,9 @@ from . import ngram
      StemToSig is a map; its keys are stems.       Its values are individual signatures.
      WordToSig is a Map. its keys are words.       Its values are *lists* of signatures.
      StemCounts is a map. Its keys are words.     Its values are corpus counts of stems.
-"""  # ---------------------------------------------------------------------------------------------------------------------------------------------#
+"""
+
+#------------------------------------------------------------------------------#
 
 
 def MakeAffixToSigs(sig_to_stems):
@@ -1489,23 +1490,20 @@ def MakeStemCounts(StemToWord, wordFreqDict):
 
 
 def MakeStemToWords(BisigToTuple, MinimumNumberofSigUses):
-    StemToWord = dict()
+    StemToWords = dict()
     for bisig in BisigToTuple.keys():  # bisig is a tuple
-        if len(BisigToTuple[bisig]) < MinimumNumberofSigUses:
-            pass
-        #            del BisigToTuple[bisig]
-        else:
+        if len(BisigToTuple[bisig]) >= MinimumNumberofSigUses:
             for stem, word1, word2 in BisigToTuple[bisig]:
-                if not stem in StemToWord:
-                    StemToWord[stem] = set()
-                StemToWord[stem].add(word1)
-                StemToWord[stem].add(word2)
+                if not stem in StemToWords:
+                    StemToWords[stem] = set()
+                StemToWords[stem].add(word1)
+                StemToWords[stem].add(word2)
 
-    for stem in StemToWord:
-        thislist = list(StemToWord[stem])
+    for stem in StemToWords:
+        thislist = list(StemToWords[stem])
         thislist.sort()
-        StemToWord[stem] = thislist
-    return StemToWord
+        StemToWords[stem] = thislist
+    return StemToWords
 
 # currently not used
 def OutputStemFile(stemfilename: Path, StemToWord, wordFreqDict):
@@ -1526,67 +1524,55 @@ def MakeBiSignatures(wordlist, MinimumStemLength, MaximumAffixLength,
     whose value is a tuple: stem, word1, word2.
     '''
     BisigToTuple = dict()
+
     nWords = len(wordlist)
 
-    if not FindSuffixesFlag:  # then alphabetize the words from right to left
+    if not FindSuffixesFlag:
         wordlist.sort(key=lambda x: x[::-1])
+        group_key = lambda x : x[ -MinimumStemLength :]
     else:
         wordlist.sort()
+        group_key = lambda x : x[ : MinimumStemLength]
 
-    print('nWords', nWords)
+    wordlist = filter(lambda x:len(x) >= MinimumStemLength, wordlist)
+
     print('FindSuffixesFlag', FindSuffixesFlag)
 
-    # subwordlist stores words in wordlist whose first k letters
-    #   are the same (k = MinimumStemLength)
-    if FindSuffixesFlag:
-        subwordlist = [wordlist[0]]
-    else:
-        subwordlist = [wordlist[0][::-1]]
+    for k, group in groupby(wordlist, key=group_key): # groupby from itertools
+        wordlist_for_analysis = list(group) # must use list() here!
+        # see python 3.4 documentation:
+        # https://docs.python.org/3/library/itertools.html#itertools.groupby
+        # "The returned group is itself an iterator that shares the underlying
+        # iterable with groupby(). Because the source is shared, when the 
+        # groupby() object is advanced, the previous group is no longer visible.
+        # So, if that data is needed later, it should be stored as a list"
 
-    for n in range(1, nWords):
-        word1 = wordlist[n - 1]
-        word2 = wordlist[n]
+        for (word1, word2) in combinations(wordlist_for_analysis, 2):
 
-        if not FindSuffixesFlag:
-            word1 = word1[::-1]
-            word2 = word2[::-1]
+            if FindSuffixesFlag:
+                stem = maximalcommonprefix(word1, word2)
+                len_stem = len(stem)
+                affix1 = word1[len_stem:]
+                affix2 = word2[len_stem:]
+            else:
+                stem = maximalcommonsuffix(word1, word2)
+                len_stem = len(stem)
+                affix1 = word1[: -len_stem]
+                affix2 = word2[: -len_stem]
 
-        minimalstem = word1[: MinimumStemLength]
-        if minimalstem == word2[: MinimumStemLength]:
-            subwordlist.append(word2)
-            continue
-        else:
-            wordlist_forAnalysisNow = list(subwordlist)
-            subwordlist = [word2]
+            len_affix1 = len(affix1)
+            len_affix2 = len(affix2)
 
-        for (word1, word2) in combinations(wordlist_forAnalysisNow, 2):
-
-            stem = maximalcommonprefix(word1, word2)
-            stemlen = len(stem)
-            suffix1 = word1[stemlen:]
-            suffix2 = word2[stemlen:]
-
-            if len(suffix1) > MaximumAffixLength or \
-                            len(suffix2) > MaximumAffixLength:
+            if len_affix1 > MaximumAffixLength or \
+               len_affix2 > MaximumAffixLength:
                 continue
 
-            if not FindSuffixesFlag:
-                word1 = word1[::-1]
-                word2 = word2[::-1]
-                stem = stem[::-1]
-                suffix1 = suffix1[::-1]
-                suffix2 = suffix2[::-1]
+            if len_affix1 == 0:
+                affix1 = 'NULL'
+            if len_affix2 == 0:
+                affix2 = 'NULL'
 
-            if len(suffix1) == 0:
-                suffix1 = 'NULL'
-            if len(suffix2) == 0:
-                suffix2 = 'NULL'
-
-            bisig = list()  # stores two affixes
-            bisig.append(suffix1)
-            bisig.append(suffix2)
-
-            bisig.sort()
+            bisig = sorted([affix1, affix2])
             bisigtuple = tuple(bisig)
 
             if not bisigtuple in BisigToTuple:
@@ -1595,6 +1581,68 @@ def MakeBiSignatures(wordlist, MinimumStemLength, MaximumAffixLength,
             BisigToTuple[bisigtuple].add(chunk)
 
     return BisigToTuple
+
+    ######################################################################
+
+    # subwordlist stores words in wordlist whose first k letters
+    #   are the same (k = MinimumStemLength)
+#    if FindSuffixesFlag:
+#        subwordlist = [wordlist[0]]
+#    else:
+#        subwordlist = [wordlist[0][::-1]]
+
+#    for n in range(1, nWords):
+#        word1 = wordlist[n - 1]
+#        word2 = wordlist[n]
+
+#        if not FindSuffixesFlag:
+#            word1 = word1[::-1]
+#            word2 = word2[::-1]
+
+#        minimalstem = word1[: MinimumStemLength]
+#        if minimalstem == word2[: MinimumStemLength]:
+#            subwordlist.append(word2)
+#            continue
+#        else:
+#            wordlist_forAnalysisNow = list(subwordlist)
+#            subwordlist = [word2]
+
+#        for (word1, word2) in combinations(wordlist_forAnalysisNow, 2):
+
+#            stem = maximalcommonprefix(word1, word2)
+#            stemlen = len(stem)
+#            suffix1 = word1[stemlen:]
+#            suffix2 = word2[stemlen:]
+
+#            if len(suffix1) > MaximumAffixLength or \
+#                            len(suffix2) > MaximumAffixLength:
+#                continue
+
+#            if not FindSuffixesFlag:
+#                word1 = word1[::-1]
+#                word2 = word2[::-1]
+#                stem = stem[::-1]
+#                suffix1 = suffix1[::-1]
+#                suffix2 = suffix2[::-1]
+
+#            if len(suffix1) == 0:
+#                suffix1 = 'NULL'
+#            if len(suffix2) == 0:
+#                suffix2 = 'NULL'
+
+#            bisig = list()  # stores two affixes
+#            bisig.append(suffix1)
+#            bisig.append(suffix2)
+
+#            bisig.sort()
+#            bisigtuple = tuple(bisig)
+
+#            if not bisigtuple in BisigToTuple:
+#                BisigToTuple[bisigtuple] = set()
+#            chunk = (stem, word1, word2)
+#            BisigToTuple[bisigtuple].add(chunk)
+
+#    return BisigToTuple
 
 # currently not used
 # ------------------------------------------------------------------------------#
