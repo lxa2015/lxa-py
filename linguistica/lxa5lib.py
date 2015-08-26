@@ -369,3 +369,22 @@ def OutputLargeDict(outfilename, inputdict,
             print(file=f)
 
 
+class LinguisticaJSONEncoder(json.JSONEncoder):
+    """We define this custom JSONEncoder subclass to deal with what the standard
+    json encoder cannot deal with: set
+    See example here: https://docs.python.org/3/library/json.html
+    """
+    def default(self, obj):
+        if isinstance(obj, set):
+            return sorted(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
+def json_dump(inputdict, outfile_opened, ensure_ascii=False, indent=None,
+        separators=(',', ':'), cls=LinguisticaJSONEncoder):
+    """json.dump with our preferred parameters
+    """
+    json.dump(inputdict, outfile_opened, ensure_ascii=ensure_ascii,
+              indent=indent, separators=separators, cls=cls)
+
+
