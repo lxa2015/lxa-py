@@ -353,6 +353,64 @@ class MainWindow(QMainWindow):
         return True # = filename is good
 
 
+    def sig_to_stems_clicked(self, row, col):
+        signature = self.sig_to_stems_major_table.item(row, 0).text()
+        print(signature)
+        stems = self.lexicon.sig_to_stems[signature]
+        number_of_stems_per_column = 5
+
+        # create a master list of sublists, where each sublist contains k stems
+        # k = number_of_stems_per_column
+        stemrow_list = list()
+        stemrow = list()
+        for i, stem in enumerate(stems, 1):
+            stemrow.append(stem)
+            if not i % number_of_stems_per_column:
+                stemrow_list.append(stemrow)
+                stemrow = list()
+        if stemrow:
+            stemrow_list.append(stemrow)
+
+        # set up the minor table as table widget
+        sig_to_stems_minor_table = QTableWidget()
+        sig_to_stems_minor_table.horizontalHeader().hide()
+        sig_to_stems_minor_table.verticalHeader().hide()
+        sig_to_stems_minor_table.clear()
+        sig_to_stems_minor_table.setRowCount(len(stemrow_list))
+        sig_to_stems_minor_table.setColumnCount(number_of_stems_per_column)
+
+        # fill in the minor table
+        for row, stemrow in enumerate(stemrow_list):
+            for col, stem in enumerate(stemrow):
+                item = QTableWidgetItem(stem)
+                sig_to_stems_minor_table.setItem(row, col, item)
+
+        sig_to_stems_minor_table.resizeColumnsToContents()
+
+        minor_table_title = QLabel(
+            "{} (number of stems: {})".format(signature, len(stems)))
+
+        minor_table_widget_with_title = QWidget()
+        layout = QVBoxLayout()
+        layout.addWidget(minor_table_title)
+        layout.addWidget(sig_to_stems_minor_table)
+        minor_table_widget_with_title.setLayout(layout)
+
+        new_display = QSplitter(Qt.Horizontal)
+        new_display.setHandleWidth(10)
+        new_display.setChildrenCollapsible(False)
+
+        new_display.addWidget(self.sig_to_stems_major_table)
+        new_display.addWidget(minor_table_widget_with_title)
+        new_display_width = self.majorDisplay.width()/2
+        new_display.setSizes(
+            [new_display_width * 0.4, new_display_width * 0.6])
+
+        self.load_main_window(major_display=new_display)
+        self.status.clearMessage()
+        self.status.showMessage("{} selected".format(signature))
+
+
     def tree_item_clicked(self, item):
         """trigger the appropriate action when something in the lexicon tree
         is clicked, and update the major display plus parameter window
@@ -396,16 +454,16 @@ class MainWindow(QMainWindow):
                 cutoff=2000)
 
         elif item_str == SIGS_TO_STEMS:
-            new_display = self.create_major_display_table(
+            self.sig_to_stems_major_table = self.create_major_display_table(
                 self.lexicon.sig_to_stems.items(),
                 key=lambda x:len(x[1]), reverse=True,
                 headers=["Signature", "Stem count", "A few stems"],
                 row_cell_functions=[lambda x : x[0], lambda x : len(x[1]),
                     lambda x : ", ".join(sorted(x[1])[:2]) + ", ..."],
                 cutoff=0)
-            # TODO: show a secondary table on the right of this tabular table
-            #       this secondary table probably shows stems and other info
-            #       of interest for a selected signature
+            self.sig_to_stems_major_table.cellClicked.connect(
+                self.sig_to_stems_clicked)
+            new_display = self.sig_to_stems_major_table
 
         elif item_str == WORDS_TO_SIGS:
             new_display = self.create_major_display_table(
