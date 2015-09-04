@@ -1,9 +1,12 @@
 #!usr/bin/env python3
 
+# This is the script to run for the command line interface of Linguistica 5.
+
 import sys
 import os
 import json
 import argparse
+import multiprocessing as mp
 from pathlib import Path
 
 from linguistica.lxa5lib import (__version__, determine_use_corpus,
@@ -192,41 +195,63 @@ if __name__ == "__main__":
     if program in {"signature", "trie", "phon"}:
         use_corpus = determine_use_corpus()
 
+    # set up the run functions for the various Lxa components
+
+    run_ngram = lambda: ngram.main(language=language, corpus=corpus,
+        datafolder=datafolder, maxwordtokens=max_word_tokens)
+
+    run_signature = lambda: signature.main(language=language, corpus=corpus,
+        datafolder=datafolder,
+        MinimumStemLength=min_stem_length,
+        MaximumAffixLength=max_affix_length,
+        MinimumNumberofSigUses=min_sig_use,
+        maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+
+    run_trie = lambda: trie.main(language=language, corpus=corpus,
+        datafolder=datafolder,
+        MinimumStemLength=min_stem_length,
+        MinimumAffixLength=min_affix_length,
+        SF_threshold=min_sf_pf_count,
+        maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+
+    run_phon = lambda: phon.main(language=language, corpus=corpus,
+        datafolder=datafolder,
+        maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+
+    run_manifold = lambda: manifold.main(language=language, corpus=corpus,
+        datafolder=datafolder,
+        maxwordtypes=max_word_types, nNeighbors=n_neighbors,
+        nEigenvectors=n_eigenvectors,
+        mincontexts=min_context_use)
+
     # if program is "all", run all Linguistica programs in the specified order
     # otherwise just run the particular one as specified
-    if program == "all":
-        programs = ["ngram", "signature", "trie", "phon", "manifold"]
-    else:
-        programs = [program]
+    if program == "ngram":
+        run_ngram()
+    elif program == "signature":
+        run_signature()
+    elif program == "trie":
+        run_trie()
+    elif program == "phon":
+        run_phon()
+    elif program == "manifold":
+        run_manifold()
+    elif program == "all":
+        # using multiprocessing here (specifically, the Process class)
+        # run the ngram component first
+        # then run {signature, trie, phon} in parallel
+        # lastly run the manifold component
 
-    for program in programs:
-        if program == "ngram":
-            ngram.main(language=language, corpus=corpus, datafolder=datafolder,
-                 maxwordtokens=max_word_tokens)
+        run_ngram()
 
-        elif program == "signature":
-            signature.main(language=language, corpus=corpus, datafolder=datafolder,
-                 MinimumStemLength=min_stem_length,
-                 MaximumAffixLength=max_affix_length,
-                 MinimumNumberofSigUses=min_sig_use,
-                 maxwordtokens=max_word_tokens, use_corpus=use_corpus)
+        signature_process = mp.Process(target=run_signature)
+        trie_process = mp.Process(target=run_trie)
+        phon_process = mp.Process(target=run_phon)
+        signature_process.start()
+        trie_process.start()
+        phon_process.start()
 
-        elif program == "trie":
-            trie.main(language=language, corpus=corpus, datafolder=datafolder,
-                 MinimumStemLength=min_stem_length,
-                 MinimumAffixLength=min_affix_length,
-                 SF_threshold=min_sf_pf_count,
-                 maxwordtokens=max_word_tokens, use_corpus=use_corpus)
-
-        elif program == "phon":
-            phon.main(language=language, corpus=corpus, datafolder=datafolder,
-                 maxwordtokens=max_word_tokens, use_corpus=use_corpus)
-
-        elif program == "manifold":
-            manifold.main(language=language, corpus=corpus, datafolder=datafolder,
-                 maxwordtypes=max_word_types, nNeighbors=n_neighbors,
-                 nEigenvectors=n_eigenvectors,
-                 mincontexts=min_context_use)
+        run_manifold()
 
     # check if the corpus text file has been run before, and keep track of it
     if use_corpus:
