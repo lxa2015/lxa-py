@@ -3,6 +3,7 @@
 
 import os
 import json
+import time
 from pathlib import Path
 
 from PyQt5.QtCore import (Qt, QUrl, QCoreApplication)
@@ -204,12 +205,20 @@ class MainWindow(QMainWindow, MainWindow_Lexicon, MainWindow_Preferences):
         self.create_lexicon()
 
 
-    def update_progress(self, progress_text, progress_number):
+    def update_progress(self, progress_text, target_percentage, gradual=True):
         """Update the progress dialog. This function is triggered by the
         "progress_signal" emitted from the linguistica component worker thread.
         """
         self.progressDialog.setLabelText(progress_text)
-        self.progressDialog.setValue(progress_number)
+        if gradual:
+            current_percentage = self.progressDialog.value()
+            for percentage in range(current_percentage, target_percentage + 1):
+                self.progressDialog.setValue(percentage)
+                QCoreApplication.processEvents()
+                time.sleep(0.1)
+        else:
+            self.progressDialog.setValue(target_percentage)
+            QCoreApplication.processEvents()
 
 
     def run_corpus(self):
@@ -237,10 +246,7 @@ class MainWindow(QMainWindow, MainWindow_Lexicon, MainWindow_Preferences):
         self.progressDialog = QProgressDialog()
         self.progressDialog.setRange(0, 100) # it's like from 0% to 100%
         self.progressDialog.setLabelText("Extracting word ngrams...")
-        self.progressDialog.setValue(5)
-            # 0 would make it look like no progress at the beginning...
-            # we set it as 5 (= 5% at the beginning) so the user thinks
-            # the program is working :-)
+        self.progressDialog.setValue(0) # initialize as 0 (= 0%)
         self.progressDialog.setWindowTitle(
             "Processing {}".format(self.corpus_name))
         self.progressDialog.setCancelButton(None)
@@ -249,7 +255,6 @@ class MainWindow(QMainWindow, MainWindow_Lexicon, MainWindow_Preferences):
             # since it would probably involve killing the linguistica component
             # worker at *any* point of its processing.
             # This may have undesirable effects (e.g., freezing the GUI) -- BAD!
-        self.progressDialog.resize(400, 100)
         self.progressDialog.show()
 
         # make sure all GUI stuff up to this point has been processed before
@@ -259,6 +264,8 @@ class MainWindow(QMainWindow, MainWindow_Lexicon, MainWindow_Preferences):
         # Now the real work begins here!
         self.lxa_worker.start()
 
+        if self.progressDialog.value() < 100:
+            self.progressDialog.setValue(100)
         QCoreApplication.processEvents()
 
         # check if corpus has been run before
