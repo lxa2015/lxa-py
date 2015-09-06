@@ -40,7 +40,8 @@ def hasGooglePOSTag(line, corpus):
 def GetMyWords(infileWordsname):
     word_to_freq = json.load(infileWordsname.open())
     return [word for word, freq in
-            sorted(word_to_freq.items(), key=lambda x: x[1], reverse=True)]
+        sorted_alphabetized(word_to_freq.items(),
+        key=lambda x: x[1], reverse=True)]
 
 
 def GetMyGraph(WordToNeighbors_by_str, useWeights=None):
@@ -101,6 +102,9 @@ def GetContextArray(nwords, worddict,
     WordToContexts = dict()
     ContextToWords = dict()
 
+    for word in worddict.keys():
+        WordToContexts[word] = dict()
+
     def addword(word, context, occurrence_count):
         word_no = worddict[word] # w is a word index
         context_no = contextdict[context] # c is a context index
@@ -110,8 +114,6 @@ def GetContextArray(nwords, worddict,
                        # What if we use occurrence_count (--> "token" counts)?
 
         # update WordToContexts and ContextToWords
-        if word not in WordToContexts:
-            WordToContexts[word] = dict()
         if context not in WordToContexts[word]:
             WordToContexts[word][context] = 0
 
@@ -126,28 +128,28 @@ def GetContextArray(nwords, worddict,
     sep = SEP_NGRAM
 
     for trigram, freq in trigram_to_freq_sorted:
-        word1, word2, word3 = trigram.split()
+        word1, word2, word3 = trigram.split(sep)
 
         context1 = '_' + sep + word2 + sep + word3
         context2 = word1 + sep + '_' + sep + word3
         context3 = word1 + sep + word2 + sep + '_'
 
-        if worddict.get(word1) is not None:
+        if word1 in WordToContexts:
             addword(word1, context1, freq)
-        if worddict.get(word2) is not None:
+        if word2 in WordToContexts:
             addword(word2, context2, freq)
-        if worddict.get(word3) is not None:
+        if word3 in WordToContexts:
             addword(word3, context3, freq)
 
     for bigram, freq in bigram_to_freq_sorted:
-        word1, word2 = bigram.split()
+        word1, word2 = bigram.split(sep)
 
         context1 = '_' + sep + word2
         context2 = word1 + sep + '_'
 
-        if worddict.get(word1) is not None:
+        if word1 in WordToContexts:
             addword(word1, context1, freq)
-        if worddict.get(word2) is not None:
+        if word2 in WordToContexts:
             addword(word2, context2, freq)
 
     # csr_matrix in scipy means compressed matrix

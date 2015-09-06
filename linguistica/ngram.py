@@ -128,8 +128,8 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     print("\nCompleted counting words, bigrams, and trigrams.", flush=True)
     print("Token count: {}".format(corpusCurrentSize), flush=True)
 
-    intro_string = "# data source: {}\n" + \
-                "# token count: {}".format(str(infilename), corpusCurrentSize)
+    intro_string = "# data source: {}\n# token count: {}".format(
+        str(infilename), corpusCurrentSize)
 
     print("Sorting the ngrams...", flush=True)
     wordsSorted = sorted_alphabetized(wordDict.items(),

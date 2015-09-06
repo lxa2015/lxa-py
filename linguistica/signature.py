@@ -196,21 +196,22 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     #   output WordToSigtransforms
     # -------------------------------------------------------------------------#
 
-    WordToSigtransforms_outfilename = Path(outfolder,
-        corpus_stem + "_WordToSigtransforms.txt")
-    OutputLargeDict(WordToSigtransforms_outfilename, WordToSigtransforms,
-                    min_cell_width=25, sigtransforms=True,
-                    key=lambda x: len(x[1]), reverse=True)
-    print('===> output file generated:',
-          WordToSigtransforms_outfilename, flush=True)
+    if WordToSigtransforms:
+        WordToSigtransforms_outfilename = Path(outfolder,
+            corpus_stem + "_WordToSigtransforms.txt")
+        OutputLargeDict(WordToSigtransforms_outfilename, WordToSigtransforms,
+                        min_cell_width=25, sigtransforms=True,
+                        key=lambda x: len(x[1]), reverse=True)
+        print('===> output file generated:',
+              WordToSigtransforms_outfilename, flush=True)
 
-    WordToSigtransforms_outfilename_json = changeFilenameSuffix(
-                                  WordToSigtransforms_outfilename, ".json")
-    json_pdump(WordToSigtransforms,
-               WordToSigtransforms_outfilename_json.open("w"),
-               key=lambda x : len(x[1]), reverse=True)
-    print('===> output file generated:',
-          WordToSigtransforms_outfilename_json, flush=True)
+        WordToSigtransforms_outfilename_json = changeFilenameSuffix(
+                                      WordToSigtransforms_outfilename, ".json")
+        json_pdump(WordToSigtransforms,
+                   WordToSigtransforms_outfilename_json.open("w"),
+                   key=lambda x : len(x[1]), reverse=True)
+        print('===> output file generated:',
+              WordToSigtransforms_outfilename_json, flush=True)
 
     # -------------------------------------------------------------------------#
     #   output the most freq word types not in any induced paradigms {the, of..}

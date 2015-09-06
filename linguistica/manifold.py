@@ -84,6 +84,9 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
         signature.main(language=language, corpus=corpus, datafolder=datafolder,
                   filename=filename)
         WordToSigtransforms = json_pload(sigtransform_json_fname.open())
+    except ValueError:
+        # WordToSigtransforms has nothing interesting
+        pass
 
     # WordToSigtransforms just read into the program; to be used soon...
 
@@ -102,7 +105,7 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     print('number of words for analysis adjusted to', nWordsForAnalysis)
 
     analyzedwordlist = mywords[ : nWordsForAnalysis] 
-    worddict = {w: analyzedwordlist.index(w) for w in analyzedwordlist}
+    worddict = {word: analyzedwordlist.index(word) for word in analyzedwordlist}
 
     corpusName = corpusStem + '_' + str(nWordsForAnalysis) + '_' + str(nNeighbors)
 
@@ -125,6 +128,12 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     context_array, contextdict, \
     WordToContexts, ContextToWords = GetContextArray(nWordsForAnalysis,
         worddict, infileBigramsname, infileTrigramsname, mincontexts)
+
+    # output WordToContexts, ContextToWords
+    json_dump(WordToContexts, outWordToContexts_json.open("w"),
+        separators=(',', ':'), indent=2)
+    json_dump(ContextToWords, outContextToWords_json.open("w"),
+        separators=(',', ':'), indent=2)
 
     print("Computing shared context master matrix...", flush=True)
     CountOfSharedContexts = context_array.dot(context_array.T).todense()
@@ -205,16 +214,8 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     outputfilelist = [outfilenameNeighbors, outfilenameNeighborGraph,
                       WordToNeighbors_json, outfilenameSharedcontexts,
                       outfilenameImportantContextToWords,
-                      outfilenameManifoldJson]
-
-    # output WordToContexts, ContextTOWords
-    outputfilelist.append(outWordToContexts_json)
-    json_dump(WordToContexts, outWordToContexts_json.open("w"),
-        separators=(',', ':'))
-
-    outputfilelist.append(outContextToWords_json)
-    json_dump(ContextToWords, outContextToWords_json.open("w"),
-        separators=(',', ':'))
+                      outfilenameManifoldJson,
+                      outWordToContexts_json, outContextToWords_json]
 
     # print to stdout the list of output files
     stdout_list("Output files:", *outputfilelist)

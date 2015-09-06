@@ -280,6 +280,10 @@ def OutputLargeDict(outfilename, inputdict,
                     SignatureKeys=False, SignatureValues=False,
                     sigtransforms=False):
 
+    if not inputdict:
+        print("inputdict is empty!")
+        return
+
     # if SignatureKeys is True, each key in inputdict is a tuple of strings
     # if SignatureKeys is False, each key in inputdict is a string
 
