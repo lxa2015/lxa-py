@@ -251,6 +251,11 @@ if __name__ == "__main__":
         trie_process.start()
         phon_process.start()
 
+        # ensure (by "join") that the process has finished before moving on
+        signature_process.join()
+        trie_process.join()
+        phon_process.join()
+
         run_manifold()
 
     # check if the corpus text file has been run before, and keep track of it
