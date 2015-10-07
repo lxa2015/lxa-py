@@ -17,7 +17,7 @@ from itertools import (zip_longest, groupby)
 __version__ = "5.1.0"
 __author__ = 'Jackson L. Lee'
 
-SEP_SIG = "-"          # separator between affixes in a sig (NULL-s-ed-ing)
+SEP_SIG = "/"          # separator between affixes in a sig (NULL/s/ed/ing)
 SEP_SIGTRANSFORM = "." # separator between sig and affix (NULL-s-ed-ing.ed)
 
 SEP_NGRAM = "\t" # separator between words in an ngram
@@ -124,6 +124,7 @@ def get_wordlist_path_corpus_stem(language, corpus, datafolder, filename,
 
 def determine_use_corpus():
     """determine if a corpus text or a wordlist is used as input dataset"""
+    use_corpus = True
     while True:
         user_input = input("\nWhat kind of input data are you using? "
                            "[\"c\" = corpus text, \"w\" = wordlist]\n>>> ")
@@ -390,7 +391,7 @@ class LinguisticaJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def json_dump(obj, outfile_opened, ensure_ascii=False, indent=None,
+def json_dump(obj, outfile_opened, ensure_ascii=False, indent=4,
         separators=(',', ':'), sort_keys=True, cls=LinguisticaJSONEncoder):
     """json.dump with our preferred parameters
     """
