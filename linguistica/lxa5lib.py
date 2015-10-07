@@ -392,7 +392,7 @@ class LinguisticaJSONEncoder(json.JSONEncoder):
 
 
 def json_dump(obj, outfile_opened, ensure_ascii=False, indent=4,
-        separators=(',', ':'), sort_keys=True, cls=LinguisticaJSONEncoder):
+        separators=(',', ': '), sort_keys=True, cls=LinguisticaJSONEncoder):
     """json.dump with our preferred parameters
     """
     json.dump(obj, outfile_opened, ensure_ascii=ensure_ascii,
