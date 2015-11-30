@@ -107,10 +107,12 @@ class LexiconEntry:
 # ---------------------------------------------------------#
 class Lexicon:
     def __init__(self):
+        self.m_TrueDictionary = dict()
         self.m_LetterPlog = dict()
         self.m_EntryDict = dict()
-        self.m_TrueDictionary = dict()
         self.m_DictionaryCost = 0   #in bits!
+        #self.m_BigramDict = dict()               # November 20, 2015  # not yet enabled
+        #self.m_TrigramDict = dict()              # November 20, 2015
         self.m_Corpus     = list()
         self.m_SizeOfLongestEntry = 0
         self.m_CorpusCost = 0.0
@@ -164,6 +166,15 @@ class Lexicon:
         for key, entry in self.m_EntryDict.items():
             entry.UpdateRegister(iteration_number)
     # ---------------------------------------------------------#
+#
+#    def CountBigrams(self):         # not yet enabled
+#    	self.m_BigramDict = dict()
+#		for parsed_line in self.m_ParsedCorpus:
+#			for wordno in range(len(parsed_line)-2):  # (FOR NOW)  SHOULD YOU PREDICT THE END PUNC OR END-OF-LINE?  TRY IT WITH AND WITHOUT  Nov. 21, 2015
+#				word0 = parsed_line[wordno]
+#                word1 = parsed_line[wordno + 1]
+            
+    # ---------------------------------------------------------#
 
 
     #-------------------------------------------------------#
@@ -188,7 +199,7 @@ class Lexicon:
             this_line = ""
             breakpoint_list_forline = list()
 
-            # Clean up data as desired
+            # Clean up data as desired   # This is for the sake of the TrueDictionary 
             #line = line.lower()
             line = line.replace('.', ' .').replace('?', ' ?')
 
@@ -340,7 +351,7 @@ class Lexicon:
             else:
                 Parse[outerscan] = list()
             if verboseflag: print("\n\t\t\t\t\t\t\t\tchosen:", LastChunk, end=" ", file=outfile)
-            Parse[outerscan].append(LastChunk)
+            Parse[outerscan].append(LastChunk)     # NOTICE  NOTICE  NOTICE  NOTICE  
         if verboseflag:
             PrintList(Parse[wordlength], outfile)
         bitcost = BestCompressedLength[outerscan]
@@ -354,7 +365,8 @@ class Lexicon:
             CandidateDict = dict()      # key is the new word, value is a LexiconEntry object
             NomineeList = list()
             for parsed_line in self.m_ParsedCorpus:
-                for wordno in range(len(parsed_line)-1):
+                for wordno in range(len(parsed_line)-1):   # SO WHY DO WE HAVE 'said.'  ?  audrey  2015_11_21
+                #for wordno in range(len(parsed_line)-2):  # under consideration 
                     word0 = parsed_line[wordno]
                     word1 = parsed_line[wordno + 1]
                     candidate = word0 + word1
@@ -371,29 +383,18 @@ class Lexicon:
             SortableCandidateDict = dict()
             for candidate, lex_entry in CandidateDict.items():
                 SortableCandidateDict[candidate] = lex_entry.m_Count
-            EntireCandidateList = sorted(SortableCandidateDict.items(),key=lambda x:x[1], reverse=True)
+            #s = sorted(SortableCandidateDict.items(),key=lambda x:x[0], reverse=True)        # secondary sort: alphabetic 
+            #EntireCandidateList = sorted(s,key=lambda x:x[1], reverse=True)                  # primary sort: by count
+            EntireCandidateList = sorted(SortableCandidateDict.items(), key=lambda x:(x[1],x[0]), reverse=True)   #primary sort key is count, secondary is alphabetic
 
-            #print("\nIn GenerateCandidates - issue is ties")
-            ThisCount = 0
             for candidate, count in EntireCandidateList:
                 #print("candidate = ", candidate)
                 if candidate in self.m_DeletionDict:
                     continue
-
-                PreviousCount = ThisCount
-                ThisCount = CandidateDict[candidate].m_Count
-                #print("PreviousCount = ", PreviousCount, "  ThisCount = ", ThisCount)
                 NomineeList.append((candidate, CandidateDict[candidate]))
-                #print("howmany = ", howmany,  "  length of NomineeList: ", len(NomineeList))
-                if len(NomineeList) > howmany:
-                    if ThisCount == PreviousCount:
-                        howmany += 1
-                        #print("Keep the new nominee; increase howmany to: ", howmany)
-                    else:
-                        NomineeList = NomineeList[0:-1]
-                        #print("Drop the new nominee; shortened NomineeList to: ", len(NomineeList))
-                        #print()
-                        break
+                if len(NomineeList) == howmany:
+                	break
+                
 
             print("Nominees:")
             latex_data= list()
