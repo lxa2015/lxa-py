@@ -200,8 +200,15 @@ class Lexicon:
             breakpoint_list_forline = list()
 
             # Clean up data as desired   # This is for the sake of the TrueDictionary 
-            #line = line.lower()
-            line = line.replace('.', ' .').replace('?', ' ?')
+            line = line.casefold()
+            line = line.replace(".", " . ")
+            line = line.replace(",", " , ")
+            line = line.replace(";", " ; ")
+            line = line.replace("!", " ! ")
+            line = line.replace("?", " ? ")
+            line = line.replace(":", " : ")
+            line = line.replace(")", " ) ")
+            line = line.replace("(", " ( ")
 
             line_list = line.split()                           # split line into words
             if len(line_list) <=  1:
