@@ -152,16 +152,37 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
     del Diameter
     del incidencegraph
 
-    print("Computing eigenvectors...", flush=True)
+    print("Computing eigenvectors and eigenvalues...", flush=True)
     myeigenvalues, myeigenvectors = GetEigenvectors(mylaplacian)
     del mylaplacian
-    del myeigenvalues
+
+    ### BEGIN work in progress ### J Lee, 2015-12-24
+    eigenvector_outdict = dict()
+
+    for eigen_no in range(len(myeigenvalues)):
+
+        ## BUG? Why is len(myeigenvalues) NOT equal to nEigenvectors?
+        coordinate_word_pairs = list()
+
+        for word_no in range(nWordsForAnalysis):
+            coordinate = myeigenvectors[word_no, eigen_no]
+            word = analyzedwordlist[word_no]
+            coordinate_word_pairs.append((coordinate, word))
+
+        coordinate_word_pairs.sort()
+        eigenvector_outdict[eigen_no] = (myeigenvalues[eigen_no],
+                                         coordinate_word_pairs)
+
+    with Path(outfolder, corpusName + '_eigenvectors.json').open('w') as f:
+        json_dump(eigenvector_outdict, f)
+    ### END work in progress ### J Lee, 2015-12-24
 
     print('Computing distances between words...', flush=True)
     # take first N columns of eigenvector matrix
     coordinates = myeigenvectors[:,:nEigenvectors] 
     wordsdistance = compute_words_distance(nWordsForAnalysis, coordinates)
     del coordinates
+    del myeigenvalues
 
     print('Computing nearest neighbors now... ', flush=True)
     closestNeighbors = compute_closest_neighbors(wordsdistance, nNeighbors)

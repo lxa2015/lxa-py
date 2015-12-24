@@ -380,14 +380,29 @@ def OutputLargeDict(outfilename, inputdict,
             print(file=f)
 
 
+def is_complex(s):
+    """Test if string s is a complex number"""
+    try:
+        test = complex(s)
+    except (ValueError, TypeError):
+        return False
+    else:
+        return True
+
 class LinguisticaJSONEncoder(json.JSONEncoder):
     """We define this custom JSONEncoder subclass to deal with what the standard
-    json encoder cannot deal with: set
+    json encoder cannot deal with:
+
+    - set: change it into an array
+    - complex number: get the real part only
     See example here: https://docs.python.org/3/library/json.html
     """
     def default(self, obj):
         if isinstance(obj, set):
             return sorted(obj)
+        if (not isinstance(obj, int)) and (not isinstance(obj, float)) and \
+            is_complex(obj):
+            return obj.real
         return json.JSONEncoder.default(self, obj)
 
 
