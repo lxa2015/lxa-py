@@ -175,6 +175,16 @@ def main(language=None, corpus=None, datafolder=None, filename=None,
 
     with Path(outfolder, corpusName + '_eigenvectors.json').open('w') as f:
         json_dump(eigenvector_outdict, f)
+
+    # Data structure of the output json file:
+    #
+    # { eigen_number : [ eigenvalue, eigenvector_as_an_array ] }
+    #
+    # eigen_number starts from 0 to k-1, for k eigenvectors
+    # (note: I don't understand why the current code only outputs 6 eigenvectors, while our default parameter has set the number of eigenvectors to be 11... bug to fix soon?)
+    #
+    # eigenvector_as_an_array is an array of pairs, where each pair is (coordinate, word). The pairs in eigenvector_as_an_array are sorted in ascending order by the coordinates.
+
     ### END work in progress ### J Lee, 2015-12-24
 
     print('Computing distances between words...', flush=True)
