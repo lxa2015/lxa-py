@@ -1,3 +1,6 @@
+**Note:** This repository is no longer maintained.
+The latest code for Linguistica 5 is at https://github.com/linguistica-uchicago/lxa5
+
 # Linguistica 5.1 (under development)
 
 This is the Python version of Linguistica, version 5.1, currently under active development.
