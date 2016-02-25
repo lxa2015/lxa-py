@@ -1,10 +1,13 @@
+**Note:** This repository is no longer maintained.
+The latest code for Linguistica 5 is at https://github.com/linguistica-uchicago/lxa5
+
+
 Linguistica 5.1
 ===============
 
 This is the Python version of Linguistica, version 5.1, currently under active development. It consists of a suite of tools for the unsupervised learning of lingusitic structure, with a corpus text file as input data.
 
-**Note:** The latest code under testing and development (with a graphical user
-interface) is in the [gui-test](https://github.com/lxa2015/lxa-py/tree/gui-test) branch.
+
 
 Download
 --------
